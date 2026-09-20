@@ -380,8 +380,11 @@ export function attachGestures(options: MekuriGestureOptions): MekuriGestureCont
     pinchStart = null;
   }
 
-  // Pointer events carry the mouse: a desktop drag pans a zoomed surface, while
-  // taps and clicks stay with the host zone layer.
+  // Pointer events carry the mouse. A press that travels pans a zoomed
+  // surface; a press that does not is a tap, and it reaches the same zone map
+  // a touch tap does. The platform click that follows is consumed by the click
+  // guard, so a host zone layer bound to clicks still acts at most once per
+  // gesture.
   function onPointerDown(event: PointerEvent): void {
     if (detached || event.pointerType === "touch" || event.button !== 0) return;
     mousePointerId = event.pointerId;
@@ -407,23 +410,28 @@ export function attachGestures(options: MekuriGestureOptions): MekuriGestureCont
     dragLast = { x: event.clientX, y: event.clientY };
   }
 
-  function endPointerDrag(consumesClick: boolean): void {
+  function endPointerDrag(event: PointerEvent | null, consumesClick: boolean): void {
     const moved = dragMovement;
+    const start = dragStart;
     mousePointerId = null;
     phase = "idle";
     dragStart = null;
     dragLast = null;
+    if (event !== null && start !== null && moved <= tapSlopPx) {
+      handleTap({ x: event.clientX, y: event.clientY });
+      return;
+    }
     if (consumesClick && moved > tapSlopPx) consumeClick();
   }
 
   function onPointerUp(event: PointerEvent): void {
     if (event.pointerId !== mousePointerId) return;
-    endPointerDrag(true);
+    endPointerDrag(event, true);
   }
 
   function onPointerCancel(event: PointerEvent): void {
     if (event.pointerId !== mousePointerId) return;
-    endPointerDrag(false);
+    endPointerDrag(null, false);
   }
 
   /** Capture-phase guard on the document: a dispatched gesture swallows the

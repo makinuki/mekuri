@@ -416,16 +416,42 @@ describe("pointer input", () => {
     expect(clicks).toHaveLength(0);
   });
 
-  it("leaves a mouse click that carried no drag to the host zone layer", async () => {
+  it("dispatches the zone action for a mouse press that carried no drag", () => {
+    const h = harness();
+
+    mouseDrag(h, RIGHT.x, RIGHT.x);
+
+    expect(h.engine.getState().pageIndex).toBe(1);
+  });
+
+  it("toggles the HUD for a mouse press in the centre zone", () => {
+    const h = harness();
+
+    mouseDrag(h, CENTER.x, CENTER.x);
+
+    expect(h.engine.getState().isHUDVisible).toBe(false);
+  });
+
+  it("consumes the click that follows a mouse tap, and pans nothing", () => {
     const h = harness();
     h.engine.setZoomScale(2);
     const clicks = collectClicks(h.element);
+    const pan = h.controller.getTransform().pan;
 
     mouseDrag(h, 200, 200);
     clickOn(h.element);
 
-    expect(clicks).toHaveLength(1);
-    expect(h.controller.getTransform().pan).toEqual({ x: -200, y: -300 });
+    expect(clicks).toHaveLength(0);
+    expect(h.controller.getTransform().pan).toEqual(pan);
+  });
+
+  it("zooms on a mouse double tap", () => {
+    const h = harness();
+
+    mouseDrag(h, RIGHT.x, RIGHT.x);
+    mouseDrag(h, RIGHT.x, RIGHT.x);
+
+    expect(h.engine.getState().zoomScale).toBeGreaterThan(1);
   });
 
   it("ignores a pointer event that belongs to touch", async () => {
