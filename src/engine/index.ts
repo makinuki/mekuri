@@ -8,6 +8,8 @@ export * from "./scroll";
 export * from "./scroll-lock";
 export * from "./props";
 export * from "./pipeline";
+export * from "./matrix";
 export * from "./zones";
+export * from "./gestures";
 export * from "./store";
 export * from "./useMekuriEngine";

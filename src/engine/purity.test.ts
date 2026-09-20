@@ -12,9 +12,15 @@ const PURE_MODULES = [
   "src/engine/scroll-lock.ts",
   "src/engine/props.ts",
   "src/engine/pipeline.ts",
+  "src/engine/matrix.ts",
   "src/engine/zones.ts",
   "src/engine/store.ts",
 ];
+
+// DOM-attached modules: they read the DOM inside their functions and stay safe
+// to import without one, so they are exempt from the DOM-word scan below but
+// may still import engine-local modules only.
+const DOM_MODULES = ["src/engine/gestures.ts"];
 
 function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
@@ -41,6 +47,16 @@ describe("engine core purity", () => {
       const source = stripComments(readFileSync(file, "utf8"));
       expect(source).not.toMatch(/react/i);
       expect(source).not.toMatch(/\b(window|document|navigator)\b/);
+    }
+  });
+
+  it("keeps DOM-attached modules free of React and external imports", () => {
+    for (const file of DOM_MODULES) {
+      const source = readFileSync(file, "utf8");
+      expect(stripComments(source)).not.toMatch(/react/i);
+      for (const specifier of importsOf(source)) {
+        expect([file, specifier]).toEqual([file, expect.stringMatching(/^\.\/[a-zA-Z]+$/)]);
+      }
     }
   });
 });

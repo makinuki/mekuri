@@ -4,3 +4,4 @@
 export * from "./viewport";
 export * from "./observers";
 export * from "./retries";
+export * from "./gestures";

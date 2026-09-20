@@ -36,10 +36,15 @@ import type {
   MekuriFailureRecord,
   MekuriMode,
   MekuriPage,
+  MekuriPoint,
   MekuriSpreadConfig,
   MekuriState,
+  MekuriZoneMap,
 } from "./types";
 import { DEFAULT_SPREAD_CONFIG } from "./types";
+
+/** Upper zoom bound used when the host configures none. */
+export const DEFAULT_MAX_ZOOM_SCALE = 4;
 
 export interface MekuriEngineOptions {
   pages: MekuriPage[];
@@ -83,9 +88,23 @@ export interface MekuriEngineOptions {
    * setTimeout; injectable so retry timing is testable. */
   scheduleRetry?: (callback: () => void, delayMs: number) => () => void;
 
+  /** Tap zone map the gesture layer dispatches from, and the map hosts read
+   * back through activeZoneMap. Defaults to the default-manga preset. */
+  zoneMap?: MekuriZoneMap;
+
+  /** Upper bound of the zoom range. Defaults to 4; a value of 1 disables
+   * zooming entirely. */
+  maxZoomScale?: number;
+
   /** Monotonic clock for sample throttling. Defaults to Date.now;
    * injectable for deterministic tests. */
   now?: () => number;
+}
+
+/** Zoom range the engine enforces. Read it instead of repeating the clamp. */
+export interface MekuriZoomBounds {
+  min: number;
+  max: number;
 }
 
 export interface MekuriEngine {
@@ -96,8 +115,12 @@ export interface MekuriEngine {
   goToIndex(index: number, relativeOffset?: number): void;
   setMode(mode: MekuriMode): void;
   setDirection(direction: MekuriDirection): void;
-  setZoomScale(scale: number, origin?: { x: number; y: number }): void;
+  /** Sets the discrete zoom scale, clamped to getZoomBounds. The origin is
+   * informational for the layer that owns the transform: the engine stores the
+   * scale only, so the matrix math stays with the code that applies it. */
+  setZoomScale(scale: number, origin?: MekuriPoint): void;
   resetZoom(): void;
+  getZoomBounds(): MekuriZoomBounds;
   toggleHUD(force?: boolean): void;
   getReadingPosition(): MekuriReadingPosition;
   /** Feeds viewport scroll state from the view layer; resolves the dominant
@@ -166,8 +189,15 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   // input to the spread math, so a list that keeps its dimensions keeps its
   // derived state even when the host hands over a fresh array on every render.
   let snapshotPages: MekuriPage[] = liveOptions.pages;
+  // Zone map the cached snapshot was built from. A host may swap presets
+  // between renders, so the derived activeZoneMap follows the option.
+  let snapshotZoneMap: MekuriZoneMap = liveOptions.zoneMap ?? DEFAULT_MANGA_ZONE_MAP;
   const dimensionKeys = new WeakMap<MekuriPage, string>();
   let snapshot = buildSnapshot();
+
+  function currentZoneMap(): MekuriZoneMap {
+    return liveOptions.zoneMap ?? DEFAULT_MANGA_ZONE_MAP;
+  }
 
   function dimensionKeyOf(page: MekuriPage): string {
     const cached = dimensionKeys.get(page);
@@ -227,7 +257,7 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
       activeSpreads: currentSpreads(),
       isZoomLocked: state.zoomScale > 1,
       isHUDVisible,
-      activeZoneMap: DEFAULT_MANGA_ZONE_MAP,
+      activeZoneMap: currentZoneMap(),
       failures: failureRegistry(),
     };
   }
@@ -246,6 +276,7 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   // reconciliation where listener notification would be re-entrant.
   function rebuild(): void {
     snapshotPages = liveOptions.pages;
+    snapshotZoneMap = currentZoneMap();
     snapshot = buildSnapshot();
   }
 
@@ -495,8 +526,10 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     notify();
   }
 
-  function setZoomScale(scale: number, _origin?: { x: number; y: number }): void {
-    const clamped = Math.max(1, scale);
+  function setZoomScale(scale: number, _origin?: MekuriPoint): void {
+    if (!Number.isFinite(scale)) return;
+    const bounds = getZoomBounds();
+    const clamped = Math.min(bounds.max, Math.max(bounds.min, scale));
     if (clamped === state.zoomScale) return;
     state.zoomScale = clamped;
     reportControlledPatch({ zoomScale: clamped });
@@ -505,6 +538,17 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
 
   function resetZoom(): void {
     setZoomScale(1);
+  }
+
+  /** Zoom range the engine clamps to. Read live so a host may change the range
+   * between zoom actions. */
+  function getZoomBounds(): MekuriZoomBounds {
+    const configured = liveOptions.maxZoomScale;
+    const max =
+      configured !== undefined && Number.isFinite(configured)
+        ? Math.max(1, configured)
+        : DEFAULT_MAX_ZOOM_SCALE;
+    return { min: 1, max };
   }
 
   function toggleHUD(force?: boolean): void {
@@ -595,7 +639,7 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
       // The host owns the page list and replaces it in place; rebuild the
       // snapshot so derived values (spreads above all) never lag behind a page
       // list whose dimensions the host already swapped.
-      if (pagesChanged()) {
+      if (pagesChanged() || snapshotZoneMap !== currentZoneMap()) {
         pruneRequests(liveOptions.pages);
         rebuild();
       }
@@ -609,6 +653,7 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     setDirection,
     setZoomScale,
     resetZoom,
+    getZoomBounds,
     toggleHUD,
     getReadingPosition,
     reportScroll,

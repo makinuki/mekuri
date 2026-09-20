@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { useMekuriEngine } from "./useMekuriEngine";
 import { IMAGE_LOAD_FAILED, RESOLVE_FAILED } from "./pipeline";
 import { DEFAULT_SPREAD_CONFIG, type MekuriPage } from "./types";
+import { customZoneMap } from "./zones";
 import { mockRetryScheduler } from "../test-utils/retries";
 
 function pages(count: number): MekuriPage[] {
@@ -72,6 +73,22 @@ describe("useMekuriEngine controlled", () => {
 });
 
 describe("useMekuriEngine image pipeline", () => {
+  it("exposes the zoom range and the tap zone map the gestures dispatch from", () => {
+    const zoneMap = customZoneMap([
+      { id: "next", action: "next", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    ]);
+    const { result } = renderHook(() =>
+      useMekuriEngine({ pages: pages(3), zoneMap, maxZoomScale: 2 }),
+    );
+
+    expect(result.current.state.activeZoneMap).toBe(zoneMap);
+    expect(result.current.getZoomBounds()).toEqual({ min: 1, max: 2 });
+
+    act(() => result.current.setZoomScale(5));
+    expect(result.current.state.zoomScale).toBe(2);
+    expect(result.current.state.isZoomLocked).toBe(true);
+  });
+
   it("drives resolve, failure, and retry through React state", async () => {
     const retries = mockRetryScheduler();
     const attempts: number[] = [];

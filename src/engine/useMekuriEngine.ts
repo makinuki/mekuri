@@ -3,7 +3,7 @@
 // useSyncExternalStore (SSR-safe through the server snapshot), and forwards
 // actions. All behavior lives in store.ts.
 import { useMemo, useRef, useSyncExternalStore, type HTMLAttributes } from "react";
-import { createMekuriEngine, type MekuriEngineOptions } from "./store";
+import { createMekuriEngine, type MekuriEngineOptions, type MekuriZoomBounds } from "./store";
 import type { MekuriPageRequest } from "./pipeline";
 import type { MekuriReadingPosition } from "./scroll";
 import type { MekuriDirection, MekuriMode, MekuriState } from "./types";
@@ -25,6 +25,8 @@ export interface MekuriEngineOutput {
 
   setZoomScale: (scale: number, origin?: { x: number; y: number }) => void;
   resetZoom: () => void;
+  /** Zoom range the engine clamps to, for host zoom controls. */
+  getZoomBounds: () => MekuriZoomBounds;
 
   /** Failure registry actions. */
   retryPage: (pageId: string | number) => void;
@@ -75,6 +77,7 @@ export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutpu
     toggleHUD: engine.toggleHUD,
     setZoomScale: engine.setZoomScale,
     resetZoom: engine.resetZoom,
+    getZoomBounds: engine.getZoomBounds,
     retryPage: engine.retryPage,
     retryAllFailures: engine.retryAllFailures,
     getPageRequest: engine.getPageRequest,

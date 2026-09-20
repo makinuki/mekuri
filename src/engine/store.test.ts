@@ -4,6 +4,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { createMekuriEngine, type MekuriEngineOptions } from "./store";
 import { DEFAULT_SPREAD_CONFIG, type MekuriPage } from "./types";
+import { customZoneMap, DEFAULT_MANGA_ZONE_MAP } from "./zones";
 
 function pages(count: number): MekuriPage[] {
   return Array.from({ length: count }, (_, i) => ({ id: i }));
@@ -378,5 +379,67 @@ describe("page list replacement", () => {
 
     expect(engine.getState()).not.toBe(before);
     expect(engine.getState().totalPages).toBe(4);
+  });
+});
+
+describe("zoom range", () => {
+  it("clamps the scale to the configured maximum", () => {
+    const { engine } = harness({ maxZoomScale: 3 });
+    expect(engine.getZoomBounds()).toEqual({ min: 1, max: 3 });
+
+    engine.setZoomScale(9);
+    expect(engine.getState().zoomScale).toBe(3);
+    expect(engine.getState().isZoomLocked).toBe(true);
+
+    engine.setZoomScale(2.5);
+    expect(engine.getState().zoomScale).toBe(2.5);
+  });
+
+  it("defaults to a maximum of four", () => {
+    const { engine } = harness();
+    expect(engine.getZoomBounds()).toEqual({ min: 1, max: 4 });
+    engine.setZoomScale(40);
+    expect(engine.getState().zoomScale).toBe(4);
+  });
+
+  it("ignores a scale that is not a finite number", () => {
+    const { engine } = harness();
+    engine.setZoomScale(2);
+    engine.setZoomScale(Number.NaN);
+    engine.setZoomScale(Number.POSITIVE_INFINITY);
+    expect(engine.getState().zoomScale).toBe(2);
+  });
+
+  it("treats a maximum of one as zoom disabled", () => {
+    const { engine } = harness({ maxZoomScale: 1 });
+    engine.setZoomScale(2);
+    expect(engine.getState().zoomScale).toBe(1);
+    expect(engine.getState().isZoomLocked).toBe(false);
+  });
+});
+
+describe("tap zone map option", () => {
+  it("defaults to the default-manga preset", () => {
+    const { engine } = harness();
+    expect(engine.getState().activeZoneMap).toBe(DEFAULT_MANGA_ZONE_MAP);
+  });
+
+  it("follows a preset the host swaps in place", () => {
+    const { engine, options } = harness();
+    const custom = customZoneMap([
+      { id: "only", action: "toggleHUD", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    ]);
+
+    options.zoneMap = custom;
+
+    expect(engine.getState().activeZoneMap).toBe(custom);
+  });
+
+  it("keeps the snapshot while the same map is passed again", () => {
+    const custom = customZoneMap([]);
+    const { engine } = harness({ zoneMap: custom });
+    const before = engine.getState();
+    expect(engine.getState()).toBe(before);
+    expect(before.activeZoneMap).toBe(custom);
   });
 });

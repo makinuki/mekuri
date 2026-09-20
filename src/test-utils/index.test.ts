@@ -7,6 +7,7 @@ import {
 } from "./observers";
 import { mockScrollGeometry, mockViewportDimensions } from "./viewport";
 import { mockRetryScheduler } from "./retries";
+import { simulateTouchGesture } from "./gestures";
 
 describe("mockResizeObserver", () => {
   it("installs the double on the window and restores the previous value", () => {
@@ -154,5 +155,111 @@ describe("mockRetryScheduler", () => {
 
     expect(runs).toBe(1);
     expect(entry.cancelled).toBe(true);
+  });
+});
+
+describe("simulateTouchGesture", () => {
+  interface RecordedEvent {
+    type: string;
+    touches: number;
+    changed: number;
+  }
+
+  function record(element: HTMLElement, types: string[]): RecordedEvent[] {
+    const events: RecordedEvent[] = [];
+    for (const type of types) {
+      element.addEventListener(type, (event) => {
+        // A click carries no touch lists, so the record tolerates both shapes.
+        const touchEvent = event as Partial<TouchEvent>;
+        events.push({
+          type,
+          touches: touchEvent.touches?.length ?? 0,
+          changed: touchEvent.changedTouches?.length ?? 0,
+        });
+      });
+    }
+    return events;
+  }
+
+  it("dispatches a drag as start, move steps, end, and a trailing click", async () => {
+    const element = document.createElement("div");
+    const events = record(element, ["touchstart", "touchmove", "touchend", "click"]);
+
+    await simulateTouchGesture(element, {
+      type: "pan",
+      from: { x: 0, y: 0 },
+      to: { x: 100, y: 40 },
+      steps: 2,
+    });
+
+    expect(events).toEqual([
+      { type: "touchstart", touches: 1, changed: 1 },
+      { type: "touchmove", touches: 1, changed: 1 },
+      { type: "touchmove", touches: 1, changed: 1 },
+      { type: "touchend", touches: 0, changed: 1 },
+      { type: "click", touches: 0, changed: 0 },
+    ]);
+  });
+
+  it("carries the interpolated coordinates a controller reads", async () => {
+    const element = document.createElement("div");
+    const points: Array<{ id: number; x: number; y: number }> = [];
+    element.addEventListener("touchmove", (event) => {
+      const touch = (event as TouchEvent).touches[0];
+      if (touch === undefined) return;
+      points.push({ id: touch.identifier, x: touch.clientX, y: touch.clientY });
+    });
+
+    await simulateTouchGesture(element, {
+      type: "swipe",
+      from: { x: 10, y: 20 },
+      to: { x: 110, y: 120 },
+      steps: 2,
+    });
+
+    expect(points).toEqual([
+      { id: 1, x: 60, y: 70 },
+      { id: 1, x: 110, y: 120 },
+    ]);
+  });
+
+  it("moves two fingers apart for a pinch", async () => {
+    const element = document.createElement("div");
+    const spans: number[] = [];
+    element.addEventListener("touchmove", (event) => {
+      const touches = (event as TouchEvent).touches;
+      const first = touches[0];
+      const second = touches[1];
+      if (first === undefined || second === undefined) return;
+      spans.push(Math.abs(second.clientX - first.clientX));
+    });
+
+    await simulateTouchGesture(element, {
+      type: "pinch",
+      center: { x: 100, y: 100 },
+      from: 100,
+      to: 200,
+      steps: 2,
+    });
+
+    expect(spans).toEqual([150, 200]);
+  });
+
+  it("emits two taps for a double tap and can skip the trailing click", async () => {
+    const element = document.createElement("div");
+    const events = record(element, ["touchstart", "touchend", "click"]);
+
+    await simulateTouchGesture(element, {
+      type: "doubleTap",
+      at: { x: 30, y: 40 },
+      clickAfter: false,
+    });
+
+    expect(events).toEqual([
+      { type: "touchstart", touches: 1, changed: 1 },
+      { type: "touchend", touches: 0, changed: 1 },
+      { type: "touchstart", touches: 1, changed: 1 },
+      { type: "touchend", touches: 0, changed: 1 },
+    ]);
   });
 });

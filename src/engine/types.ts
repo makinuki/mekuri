@@ -7,6 +7,13 @@ export type MekuriDirection = "ltr" | "rtl";
 
 export type ChapterBoundary = "start" | "end";
 
+/** A point or offset in viewport-local pixels. Shared by the zone, matrix, and
+ * gesture layers so a coordinate handed between them never changes shape. */
+export interface MekuriPoint {
+  x: number;
+  y: number;
+}
+
 export interface MekuriPage {
   id: string | number;
   /** Intrinsic pixel width, when known. Enables zero-CLS layout. */
