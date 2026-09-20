@@ -3,3 +3,4 @@
 // virtualized views need under jsdom.
 export * from "./viewport";
 export * from "./observers";
+export * from "./retries";

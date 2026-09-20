@@ -13,6 +13,9 @@
 //   applied, so continuous seams and compositor layers cannot appear.
 // - Images outside the visible range keep their layout box and lose their
 //   source, releasing decoded texture memory without shifting the column.
+// - Page boxes carry their pipeline state in data-mekuri-src-state: "ready"
+//   when the current attempt has a source, "pending" while it is being
+//   resolved, "failed" when the attempt is in the engine failure registry.
 // - Host page bodies come from renderPage. Host slots own their nodes and are
 //   never detached by the view.
 
@@ -26,6 +29,7 @@ import {
   type ReactNode,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { IMAGE_LOAD_FAILED } from "../engine/pipeline";
 import { resolvePageFromScrollOffset, type MekuriReadingPosition } from "../engine/scroll";
 import { createScrollAlignmentLock, type ScrollAlignmentLock } from "../engine/scroll-lock";
 import type { MekuriEngine } from "../engine/store";
@@ -76,15 +80,6 @@ function integerHeight(node: HTMLElement): number {
 function modeGap(mode: MekuriMode, gap: number | undefined): number {
   if (mode === "continuous-webtoon") return 0;
   return Math.max(0, Math.round(gap ?? 0));
-}
-
-/** Default image source for the no-slot path. Hosts own real resolution
- * (pipeline callbacks, proxying, cache busting); the default reads the source
- * the host attached to the page metadata. */
-function renderPageSrc(page: MekuriPage): string {
-  const metadata = page.metadata ?? {};
-  const src = metadata["src"];
-  return typeof src === "string" ? src : "";
 }
 
 /** Coalesces scroll work into one animation frame, falling back to a timer
@@ -299,11 +294,36 @@ export function ContinuousView({
     virtualizer.scrollToOffset(target);
   });
 
-  if (pages.length === 0) return null;
-
   const virtualItems = virtualizer.getVirtualItems();
   const activeStart = virtualizer.range?.startIndex ?? 0;
   const activeEnd = virtualizer.range?.endIndex ?? Number.MAX_SAFE_INTEGER;
+
+  // Sources are resolved through the engine pipeline. Only pages inside the
+  // visible range request a source, a page resolves when the engine has not
+  // started it yet or when a retry advanced the attempt past the one the view
+  // already resolved, and a page whose retry is already scheduled waits for the
+  // backoff instead of resolving again on the render that follows a remount.
+  // The effect runs after every render because the virtual range it filters on
+  // is read during render; the recorded attempt is what keeps it from looping.
+  const requestedAttemptsRef = useRef(new Map<string | number, number>());
+  useEffect(() => {
+    if (renderPage !== undefined) return;
+    const pipeline = engineRef.current;
+    const requested = requestedAttemptsRef.current;
+    for (const item of virtualItems) {
+      if (item.index < activeStart || item.index > activeEnd) continue;
+      const page = pagesRef.current[item.index];
+      if (page === undefined) continue;
+      const request = pipeline.getPageRequest(page.id);
+      if (request === undefined || request.retryScheduled) continue;
+      if (request.attempt === requested.get(page.id)) continue;
+      void pipeline.resolvePageSrc(page.id);
+      requested.set(page.id, pipeline.getPageRequest(page.id)?.attempt ?? request.attempt);
+    }
+  });
+
+  if (pages.length === 0) return null;
+
   const columnStyle: CSSProperties = {
     position: "relative",
     height: Math.round(virtualizer.getTotalSize()),
@@ -327,6 +347,11 @@ export function ContinuousView({
             // Detachment applies to the default image body only: a host slot
             // owns its nodes.
             const detached = !isActive && renderPage === undefined;
+            const request = detached ? undefined : engine.getPageRequest(page.id);
+            const src = request?.src;
+            const pinned = detached || src === undefined;
+            const srcState =
+              request?.failure !== undefined ? "failed" : src === undefined ? "pending" : "ready";
             return (
               <div
                 key={page.id}
@@ -335,6 +360,7 @@ export function ContinuousView({
                 data-mekuri-page="true"
                 data-mekuri-active={isActive ? "true" : "false"}
                 data-mekuri-detached={detached ? "true" : "false"}
+                data-mekuri-src-state={srcState}
                 style={{
                   position: "absolute",
                   top: Math.round(item.start),
@@ -342,16 +368,29 @@ export function ContinuousView({
                   right: 0,
                   display: "block",
                   overflow: "hidden",
-                  height: detached ? Math.round(item.size) : undefined,
+                  // The box keeps its measured height until a source is ready,
+                  // so a pending page cannot collapse the column.
+                  height: pinned ? Math.round(item.size) : undefined,
                 }}
               >
                 {renderPage !== undefined ? (
                   renderPage(page, item.index)
                 ) : (
                   <img
-                    src={isActive ? renderPageSrc(page) : undefined}
+                    key={`${page.id}:${request?.attempt ?? 0}`}
+                    src={src}
                     alt={`Page ${item.index + 1}`}
                     decoding="async"
+                    onLoad={() => {
+                      engineRef.current.reportPageLoaded(page.id);
+                    }}
+                    onError={() => {
+                      engineRef.current.reportPageLoadFailed(
+                        page.id,
+                        IMAGE_LOAD_FAILED,
+                        `Page ${item.index + 1} reported a load error`,
+                      );
+                    }}
                     style={{ display: "block", width: "100%" }}
                   />
                 )}

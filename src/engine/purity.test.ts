@@ -11,6 +11,7 @@ const PURE_MODULES = [
   "src/engine/scroll.ts",
   "src/engine/scroll-lock.ts",
   "src/engine/props.ts",
+  "src/engine/pipeline.ts",
   "src/engine/zones.ts",
   "src/engine/store.ts",
 ];

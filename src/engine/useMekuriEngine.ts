@@ -4,6 +4,7 @@
 // actions. All behavior lives in store.ts.
 import { useMemo, useRef, useSyncExternalStore, type HTMLAttributes } from "react";
 import { createMekuriEngine, type MekuriEngineOptions } from "./store";
+import type { MekuriPageRequest } from "./pipeline";
 import type { MekuriReadingPosition } from "./scroll";
 import type { MekuriDirection, MekuriMode, MekuriState } from "./types";
 
@@ -24,6 +25,18 @@ export interface MekuriEngineOutput {
 
   setZoomScale: (scale: number, origin?: { x: number; y: number }) => void;
   resetZoom: () => void;
+
+  /** Failure registry actions. */
+  retryPage: (pageId: string | number) => void;
+  retryAllFailures: () => void;
+
+  /** Host image pipeline. The engine owns attempt counting, retry scheduling,
+   * and the failure registry; the host resolver owns the request and the view
+   * reports load outcomes. */
+  getPageRequest: (pageId: string | number) => MekuriPageRequest | undefined;
+  resolvePageSrc: (pageId: string | number) => Promise<string | null>;
+  reportPageLoaded: (pageId: string | number) => void;
+  reportPageLoadFailed: (pageId: string | number, code: string, message: string) => void;
 
   /** Typed DOM prop bindings for the host's containers. Both records are
    * stable for a given mode and zoom lock; the gesture layer refines the
@@ -62,6 +75,12 @@ export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutpu
     toggleHUD: engine.toggleHUD,
     setZoomScale: engine.setZoomScale,
     resetZoom: engine.resetZoom,
+    retryPage: engine.retryPage,
+    retryAllFailures: engine.retryAllFailures,
+    getPageRequest: engine.getPageRequest,
+    resolvePageSrc: engine.resolvePageSrc,
+    reportPageLoaded: engine.reportPageLoaded,
+    reportPageLoadFailed: engine.reportPageLoadFailed,
     getContainerProps: engine.getContainerProps,
     getViewportProps: engine.getViewportProps,
   };

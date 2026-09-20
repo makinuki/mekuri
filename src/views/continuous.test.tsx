@@ -3,13 +3,15 @@
 // offset reads come from the geometry doubles, measurements are driven through
 // the ResizeObserver double, and scroll sequences are dispatched on the real
 // scroll element the view binds.
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 import { ContinuousView } from "./continuous";
+import { IMAGE_LOAD_FAILED, RESOLVE_FAILED } from "../engine/pipeline";
 import type { MekuriReadingPosition } from "../engine/scroll";
 import { createMekuriEngine, type MekuriEngineOptions } from "../engine/store";
 import type { MekuriPage } from "../engine/types";
 import { mockResizeObserver, type MockResizeObserverHandle } from "../test-utils/observers";
+import { mockRetryScheduler } from "../test-utils/retries";
 import { mockScrollGeometry } from "../test-utils/viewport";
 
 const VIEWPORT_HEIGHT = 600;
@@ -69,6 +71,14 @@ function column(container: HTMLElement): HTMLElement {
 
 function pageBoxes(container: HTMLElement): HTMLElement[] {
   return [...container.querySelectorAll("[data-mekuri-page]")] as HTMLElement[];
+}
+
+function boxFor(container: HTMLElement, index: number): HTMLElement {
+  const box = pageBoxes(container).find(
+    (candidate) => candidate.getAttribute("data-index") === String(index),
+  );
+  expect(box).not.toBeUndefined();
+  return box as HTMLElement;
 }
 
 /** Programmatic writes to scrollTop produce a scroll event on the platform;
@@ -348,5 +358,181 @@ describe("ContinuousView mode switching", () => {
     reportScroll(element);
     expect(engine.getState().pageIndex).toBe(4);
     expect(element.scrollTop).toBe(4 * PAGE_HEIGHT + 4 * 24);
+  });
+});
+
+describe("ContinuousView image pipeline", () => {
+  it("recovers a flaky source after exactly maxAutoRetries plus one attempts", async () => {
+    const layout = mountGeometry();
+    const list = pages(3);
+    const retries = mockRetryScheduler();
+    const attempts: number[] = [];
+    const engine = continuousEngine({
+      pages: list,
+      scheduleRetry: retries.schedule,
+      resolveSrc: (_page, attempt) => {
+        attempts.push(attempt);
+        if (attempt < 3) throw new Error(`attempt ${attempt} failed`);
+        return `https://example.test/pages/0.jpg?retry=${attempt}`;
+      },
+    });
+    const { container } = render(<ContinuousView engine={engine} pages={list} />);
+    layout.measure();
+    await settle();
+
+    expect(attempts).toEqual([1]);
+    expect(engine.getState().failures["page-0"]).toEqual({
+      attempt: 1,
+      stage: "resolve",
+      code: RESOLVE_FAILED,
+      message: "attempt 1 failed",
+    });
+    expect(boxFor(container, 0).getAttribute("data-mekuri-src-state")).toBe("failed");
+    // One backoff per failure, doubling: 400 ms after attempt 1, 800 ms after 2.
+    expect(retries.scheduled.map((entry) => entry.delayMs)).toEqual([400]);
+
+    act(() => retries.next().run());
+    await settle();
+
+    expect(attempts).toEqual([1, 2]);
+    expect(retries.scheduled.map((entry) => entry.delayMs)).toEqual([400, 800]);
+
+    act(() => retries.next().run());
+    await settle();
+
+    expect(attempts).toEqual([1, 2, 3]);
+    expect(engine.getState().failures).toEqual({});
+    expect(retries.pending()).toEqual([]);
+    expect(boxFor(container, 0).getAttribute("data-mekuri-src-state")).toBe("ready");
+    expect(boxFor(container, 0).querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.test/pages/0.jpg?retry=3",
+    );
+  });
+
+  it("keeps the attempt counter and the registry across a view remount", async () => {
+    const layout = mountGeometry();
+    const list = pages(3);
+    const retries = mockRetryScheduler();
+    const attempts: number[] = [];
+    const engine = continuousEngine({
+      pages: list,
+      scheduleRetry: retries.schedule,
+      resolveSrc: (_page, attempt) => {
+        attempts.push(attempt);
+        if (attempt < 2) throw new Error(`attempt ${attempt} failed`);
+        return `https://example.test/pages/0.jpg?retry=${attempt}`;
+      },
+    });
+    const first = render(<ContinuousView engine={engine} pages={list} />);
+    layout.measure();
+    await settle();
+    expect(attempts).toEqual([1]);
+
+    first.unmount();
+
+    // The registry and the attempt counter belong to the engine, so the failure
+    // survives the unmount as plain data.
+    const failures = engine.getState().failures;
+    expect(failures["page-0"]).toEqual({
+      attempt: 1,
+      stage: "resolve",
+      code: RESOLVE_FAILED,
+      message: "attempt 1 failed",
+    });
+    expect(failures["page-0"]).not.toBeInstanceOf(Error);
+    expect(JSON.parse(JSON.stringify(failures))).toEqual(failures);
+
+    const second = render(<ContinuousView engine={engine} pages={list} />);
+    layout.measure();
+    await settle();
+    // A remount resumes the pending backoff instead of resolving attempt 1 again.
+    expect(attempts).toEqual([1]);
+    expect(retries.pending()).toHaveLength(1);
+
+    act(() => retries.next().run());
+    await settle();
+
+    expect(attempts).toEqual([1, 2]);
+    expect(engine.getState().failures).toEqual({});
+    expect(boxFor(second.container, 0).querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.test/pages/0.jpg?retry=2",
+    );
+  });
+
+  it("records a load error from the image element and clears it when the image loads", async () => {
+    const layout = mountGeometry();
+    const list = pages(3);
+    const retries = mockRetryScheduler();
+    const engine = continuousEngine({
+      pages: list,
+      scheduleRetry: retries.schedule,
+      resolveSrc: (_page, attempt) => `https://example.test/pages/0.jpg?retry=${attempt}`,
+    });
+    const { container } = render(<ContinuousView engine={engine} pages={list} />);
+    layout.measure();
+    await settle();
+
+    const image = boxFor(container, 0).querySelector("img");
+    expect(image?.getAttribute("src")).toBe("https://example.test/pages/0.jpg?retry=1");
+
+    act(() => {
+      fireEvent.error(image as HTMLImageElement);
+    });
+
+    expect(engine.getState().failures["page-0"]).toEqual({
+      attempt: 1,
+      stage: "load",
+      code: IMAGE_LOAD_FAILED,
+      message: "Page 1 reported a load error",
+    });
+    expect(boxFor(container, 0).getAttribute("data-mekuri-src-state")).toBe("failed");
+    expect(retries.scheduled.map((entry) => entry.delayMs)).toEqual([400]);
+
+    act(() => retries.next().run());
+    await settle();
+
+    // The new attempt re-resolves and the image element is recreated for it.
+    const retried = boxFor(container, 0).querySelector("img");
+    expect(retried).not.toBe(image);
+    expect(retried?.getAttribute("src")).toBe("https://example.test/pages/0.jpg?retry=2");
+
+    act(() => {
+      fireEvent.load(retried as HTMLImageElement);
+    });
+
+    expect(engine.getState().failures).toEqual({});
+    expect(retries.pending()).toEqual([]);
+    expect(boxFor(container, 0).getAttribute("data-mekuri-src-state")).toBe("ready");
+  });
+
+  it("pins a page box at its measured height while its source is in flight", async () => {
+    const layout = mountGeometry();
+    const list = pages(2);
+    const pending: (() => void)[] = [];
+    const engine = continuousEngine({
+      pages: list,
+      scheduleRetry: mockRetryScheduler().schedule,
+      resolveSrc: (_page, attempt) =>
+        new Promise<string>((resolve) => {
+          pending.push(() => resolve(`https://example.test/pages/0.jpg?retry=${attempt}`));
+        }),
+    });
+    const { container } = render(<ContinuousView engine={engine} pages={list} />);
+    layout.measure();
+
+    const box = boxFor(container, 0);
+    expect(box.getAttribute("data-mekuri-src-state")).toBe("pending");
+    expect(box.style.height).toBe(`${PAGE_HEIGHT}px`);
+    expect(column(container).style.height).toBe(`${2 * PAGE_HEIGHT}px`);
+
+    await act(async () => {
+      pending[0]?.();
+    });
+
+    expect(box.getAttribute("data-mekuri-src-state")).toBe("ready");
+    expect(box.style.height).toBe("");
+    expect(box.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.test/pages/0.jpg?retry=1",
+    );
   });
 });

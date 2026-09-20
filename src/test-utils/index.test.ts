@@ -6,6 +6,7 @@ import {
   mockResizeObserver,
 } from "./observers";
 import { mockScrollGeometry, mockViewportDimensions } from "./viewport";
+import { mockRetryScheduler } from "./retries";
 
 describe("mockResizeObserver", () => {
   it("installs the double on the window and restores the previous value", () => {
@@ -118,5 +119,40 @@ describe("mockScrollGeometry", () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe("mockRetryScheduler", () => {
+  it("captures scheduled retries and runs them on demand", () => {
+    const scheduler = mockRetryScheduler();
+    const ran: string[] = [];
+    const cancelFirst = scheduler.schedule(() => ran.push("first"), 400);
+    scheduler.schedule(() => ran.push("second"), 800);
+
+    expect(scheduler.scheduled.map((entry) => entry.delayMs)).toEqual([400, 800]);
+    expect(scheduler.next().cancelled).toBe(false);
+
+    cancelFirst();
+    expect(scheduler.pending().map((entry) => entry.delayMs)).toEqual([800]);
+
+    scheduler.runAll();
+    expect(ran).toEqual(["second"]);
+    expect(scheduler.pending()).toEqual([]);
+    expect(() => scheduler.next()).toThrow();
+  });
+
+  it("skips an entry that already ran or was cancelled", () => {
+    const scheduler = mockRetryScheduler();
+    let runs = 0;
+    scheduler.schedule(() => {
+      runs += 1;
+    }, 400);
+
+    const entry = scheduler.next();
+    entry.run();
+    entry.run();
+
+    expect(runs).toBe(1);
+    expect(entry.cancelled).toBe(true);
   });
 });

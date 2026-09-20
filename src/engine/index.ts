@@ -7,6 +7,7 @@ export * from "./spreads";
 export * from "./scroll";
 export * from "./scroll-lock";
 export * from "./props";
+export * from "./pipeline";
 export * from "./zones";
 export * from "./store";
 export * from "./useMekuriEngine";

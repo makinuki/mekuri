@@ -18,11 +18,22 @@ import {
 } from "./scroll";
 import { containerProps, viewportProps } from "./props";
 import type { MekuriContainerProps, MekuriViewportProps } from "./props";
+import {
+  DEFAULT_MAX_AUTO_RETRIES,
+  DEFAULT_RETRY_DELAY_MS,
+  RESOLVE_FAILED,
+  defaultSrcResolver,
+  failureMessage,
+  retryDelayMs,
+  type MekuriDecodeConstraints,
+  type MekuriPageRequest,
+} from "./pipeline";
 import { DEFAULT_MANGA_ZONE_MAP } from "./zones";
 import type {
   ChapterBoundary,
   MekuriControlledState,
   MekuriDirection,
+  MekuriFailureRecord,
   MekuriMode,
   MekuriPage,
   MekuriSpreadConfig,
@@ -47,6 +58,30 @@ export interface MekuriEngineOptions {
   positionSampleInterval?: number;
 
   onBoundaryReached?: (boundary: ChapterBoundary) => void;
+
+  /** Host image pipeline hook: resolves the display source for one attempt.
+   * The host owns authentication, proxying, unscrambling, and cache busting
+   * keyed on the attempt number. When absent, the source is read from the page
+   * metadata. */
+  resolveSrc?: (
+    page: MekuriPage,
+    attempt: number,
+    constraints?: MekuriDecodeConstraints,
+  ) => string | Promise<string>;
+
+  /** Auto-retries attempted after a failure before escalation. Defaults to 2,
+   * so a page that never loads is resolved at most 3 times. */
+  maxAutoRetries?: number;
+
+  /** Decode constraints passed through to resolveSrc when configured. */
+  maxDecodeDimensions?: MekuriDecodeConstraints;
+
+  /** Base delay of the exponential retry backoff. Defaults to 400 ms. */
+  retryDelayMs?: number;
+
+  /** Schedules a delayed callback and returns its canceller. Defaults to
+   * setTimeout; injectable so retry timing is testable. */
+  scheduleRetry?: (callback: () => void, delayMs: number) => () => void;
 
   /** Monotonic clock for sample throttling. Defaults to Date.now;
    * injectable for deterministic tests. */
@@ -73,6 +108,22 @@ export interface MekuriEngine {
    * between renders. */
   getContainerProps(): MekuriContainerProps;
   getViewportProps(): MekuriViewportProps;
+  /** Pipeline state of one page: attempt counter, resolved source, failure.
+   * Undefined only for ids the current chapter does not carry. */
+  getPageRequest(pageId: string | number): MekuriPageRequest | undefined;
+  /** Advances to the page's current attempt and resolves it through the host
+   * resolver. Resolves to null when the page is unknown, the resolver fails, or
+   * a newer attempt superseded this one. */
+  resolvePageSrc(pageId: string | number): Promise<string | null>;
+  /** Clears the failure and the scheduled retry for a page. */
+  reportPageLoaded(pageId: string | number): void;
+  /** Records a load-stage failure and schedules an automatic retry while
+   * attempts remain. */
+  reportPageLoadFailed(pageId: string | number, code: string, message: string): void;
+  /** Re-resolves one page immediately, bypassing the retry backoff. */
+  retryPage(pageId: string | number): void;
+  /** Re-resolves every page in the failure registry. */
+  retryAllFailures(): void;
   /** Reconciles the internal mirror with host-owned state. No-op in
    * uncontrolled mode. Safe to call during render; never notifies. */
   syncControlled(state: MekuriControlledState | undefined): void;
@@ -81,6 +132,18 @@ export interface MekuriEngine {
 export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngine {
   const listeners = new Set<() => void>();
   const clock = (): number => (liveOptions.now ? liveOptions.now() : Date.now());
+  const scheduleRetry =
+    liveOptions.scheduleRetry ??
+    ((callback: () => void, delayMs: number): (() => void) => {
+      const handle = setTimeout(callback, delayMs);
+      return () => {
+        clearTimeout(handle);
+      };
+    });
+  // Pipeline state per page id: attempt counter, resolved source, failure, and
+  // the pending automatic retry.
+  const requests = new Map<string | number, MekuriPageRequest>();
+  const retryCancels = new Map<string | number, () => void>();
 
   const state: MekuriControlledState = {
     pageIndex: liveOptions.initialState?.pageIndex ?? 0,
@@ -165,8 +228,18 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
       isZoomLocked: state.zoomScale > 1,
       isHUDVisible,
       activeZoneMap: DEFAULT_MANGA_ZONE_MAP,
-      failures: {},
+      failures: failureRegistry(),
     };
+  }
+
+  /** Serializable view of the registry: only failing pages appear, and every
+   * record holds primitives so a host may persist or transmit it directly. */
+  function failureRegistry(): Record<string | number, MekuriFailureRecord> {
+    const registry: Record<string | number, MekuriFailureRecord> = {};
+    for (const [pageId, request] of requests) {
+      if (request.failure !== undefined) registry[pageId] = request.failure;
+    }
+    return registry;
   }
 
   // Rebuilds the cached snapshot without notifying. Used for render-time
@@ -179,6 +252,143 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   function notify(): void {
     rebuild();
     for (const listener of listeners) listener();
+  }
+
+  function pageById(pageId: string | number): MekuriPage | undefined {
+    return liveOptions.pages.find((page) => page.id === pageId);
+  }
+
+  function requestOf(pageId: string | number): MekuriPageRequest {
+    const existing = requests.get(pageId);
+    if (existing !== undefined) return existing;
+    const created: MekuriPageRequest = { attempt: 0, retryScheduled: false };
+    requests.set(pageId, created);
+    return created;
+  }
+
+  function cancelRetry(pageId: string | number): void {
+    const cancel = retryCancels.get(pageId);
+    if (cancel !== undefined) {
+      cancel();
+      retryCancels.delete(pageId);
+    }
+  }
+
+  /** Auto-retries allowed after a failure. Read live so a host may change the
+   * budget between attempts; negative and fractional values are clamped. */
+  function maxAutoRetries(): number {
+    return Math.max(0, Math.floor(liveOptions.maxAutoRetries ?? DEFAULT_MAX_AUTO_RETRIES));
+  }
+
+  /** Advances the attempt counter after the backoff the current attempt earns.
+   * The advance is what wakes the view, which then resolves the new attempt
+   * through resolveSrc. */
+  function scheduleAutoRetry(pageId: string | number): void {
+    const request = requestOf(pageId);
+    request.retryScheduled = false;
+    cancelRetry(pageId);
+    if (request.attempt > maxAutoRetries()) return;
+    const attempt = request.attempt;
+    request.retryScheduled = true;
+    const delay = retryDelayMs(attempt, liveOptions.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS);
+    retryCancels.set(
+      pageId,
+      scheduleRetry(() => {
+        retryCancels.delete(pageId);
+        const current = requestOf(pageId);
+        current.retryScheduled = false;
+        current.attempt = attempt + 1;
+        notify();
+      }, delay),
+    );
+  }
+
+  function recordFailure(
+    pageId: string | number,
+    stage: MekuriFailureRecord["stage"],
+    code: string,
+    message: string,
+  ): void {
+    const request = requestOf(pageId);
+    request.failure = { attempt: request.attempt, stage, code, message };
+  }
+
+  async function resolvePageSrc(pageId: string | number): Promise<string | null> {
+    const page = pageById(pageId);
+    if (page === undefined) return null;
+    const request = requestOf(pageId);
+    // The first resolve starts attempt 1; later resolves use the attempt a
+    // retry already advanced to, which is what lets a host key its cache
+    // busting on the attempt number.
+    request.attempt = Math.max(1, request.attempt);
+    cancelRetry(pageId);
+    request.retryScheduled = false;
+    notify();
+    const attempt = request.attempt;
+    const resolver = liveOptions.resolveSrc;
+    let src: string;
+    try {
+      src = resolver
+        ? await resolver(page, attempt, liveOptions.maxDecodeDimensions)
+        : defaultSrcResolver(page);
+    } catch (error) {
+      if (request.attempt !== attempt) return null;
+      recordFailure(pageId, "resolve", RESOLVE_FAILED, failureMessage(error));
+      scheduleAutoRetry(pageId);
+      notify();
+      return null;
+    }
+    // A retry that advanced the attempt while this resolve was in flight owns
+    // the request now.
+    if (request.attempt !== attempt) return null;
+    if (request.failure?.stage === "resolve") request.failure = undefined;
+    request.src = src;
+    notify();
+    return src;
+  }
+
+  function reportPageLoaded(pageId: string | number): void {
+    const request = requests.get(pageId);
+    if (request === undefined) return;
+    cancelRetry(pageId);
+    request.retryScheduled = false;
+    request.failure = undefined;
+    notify();
+  }
+
+  function reportPageLoadFailed(pageId: string | number, code: string, message: string): void {
+    recordFailure(pageId, "load", code, message);
+    scheduleAutoRetry(pageId);
+    notify();
+  }
+
+  function retryPage(pageId: string | number): void {
+    const request = requestOf(pageId);
+    cancelRetry(pageId);
+    request.retryScheduled = false;
+    request.failure = undefined;
+    request.attempt += 1;
+    notify();
+  }
+
+  function retryAllFailures(): void {
+    for (const [pageId, request] of requests) {
+      if (request.failure !== undefined) retryPage(pageId);
+    }
+  }
+
+  /** Drops pipeline state for pages the chapter no longer carries. Pages that
+   * survive keep their attempt counters, so a virtualized page leaving the
+   * window never loses a retry. */
+  function pruneRequests(pages: MekuriPage[]): void {
+    const ids = new Set(pages.map((page) => page.id));
+    // Map iteration tolerates deletion of the entry being visited.
+    for (const pageId of requests.keys()) {
+      if (!ids.has(pageId)) {
+        cancelRetry(pageId);
+        requests.delete(pageId);
+      }
+    }
   }
 
   function emitSample(): void {
@@ -385,7 +595,10 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
       // The host owns the page list and replaces it in place; rebuild the
       // snapshot so derived values (spreads above all) never lag behind a page
       // list whose dimensions the host already swapped.
-      if (pagesChanged()) rebuild();
+      if (pagesChanged()) {
+        pruneRequests(liveOptions.pages);
+        rebuild();
+      }
       return snapshot;
     },
     subscribe,
@@ -401,6 +614,18 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     reportScroll,
     getContainerProps,
     getViewportProps,
+    getPageRequest: (pageId) => {
+      const request = requests.get(pageId);
+      if (request !== undefined) return { ...request };
+      // Pages the chapter carries but the pipeline never touched report a zeroed
+      // record; only ids outside the chapter have no pipeline state at all.
+      return pageById(pageId) === undefined ? undefined : { attempt: 0, retryScheduled: false };
+    },
+    resolvePageSrc,
+    reportPageLoaded,
+    reportPageLoadFailed,
+    retryPage,
+    retryAllFailures,
     syncControlled,
   };
 }
