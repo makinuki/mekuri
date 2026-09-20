@@ -6,7 +6,7 @@ import { useMemo, useRef, useSyncExternalStore, type HTMLAttributes } from "reac
 import { createMekuriEngine, type MekuriEngineOptions, type MekuriZoomBounds } from "./store";
 import type { MekuriPageRequest } from "./pipeline";
 import type { MekuriReadingPosition } from "./scroll";
-import type { MekuriDirection, MekuriMode, MekuriState } from "./types";
+import type { MekuriDirection, MekuriKeyboardMap, MekuriMode, MekuriState } from "./types";
 
 export interface MekuriEngineOutput {
   state: MekuriState;
@@ -25,8 +25,17 @@ export interface MekuriEngineOutput {
 
   setZoomScale: (scale: number, origin?: { x: number; y: number }) => void;
   resetZoom: () => void;
+  /** Multiplies the zoom scale by one step, clamped to the zoom bounds. */
+  zoomIn: () => void;
+  /** Divides the zoom scale by one step, never below 1. */
+  zoomOut: () => void;
   /** Zoom range the engine clamps to, for host zoom controls. */
   getZoomBounds: () => MekuriZoomBounds;
+
+  /** Keyboard bindings in force, for host shortcut help surfaces. */
+  getKeyboardMap: () => MekuriKeyboardMap;
+  /** Bounded page indices to warm around the reading position. */
+  getPreloadWindow: () => number[];
 
   /** Failure registry actions. */
   retryPage: (pageId: string | number) => void;
@@ -77,7 +86,11 @@ export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutpu
     toggleHUD: engine.toggleHUD,
     setZoomScale: engine.setZoomScale,
     resetZoom: engine.resetZoom,
+    zoomIn: engine.zoomIn,
+    zoomOut: engine.zoomOut,
     getZoomBounds: engine.getZoomBounds,
+    getKeyboardMap: engine.getKeyboardMap,
+    getPreloadWindow: engine.getPreloadWindow,
     retryPage: engine.retryPage,
     retryAllFailures: engine.retryAllFailures,
     getPageRequest: engine.getPageRequest,

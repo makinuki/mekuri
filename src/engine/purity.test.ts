@@ -14,13 +14,19 @@ const PURE_MODULES = [
   "src/engine/pipeline.ts",
   "src/engine/matrix.ts",
   "src/engine/zones.ts",
+  "src/engine/preload.ts",
   "src/engine/store.ts",
 ];
 
 // DOM-attached modules: they read the DOM inside their functions and stay safe
 // to import without one, so they are exempt from the DOM-word scan below but
 // may still import engine-local modules only.
-const DOM_MODULES = ["src/engine/gestures.ts"];
+const DOM_MODULES = [
+  "src/engine/gestures.ts",
+  "src/engine/keyboard.ts",
+  "src/engine/fullscreen.ts",
+  "src/engine/wake-lock.ts",
+];
 
 function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");

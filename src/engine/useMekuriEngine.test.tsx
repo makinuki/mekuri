@@ -135,4 +135,24 @@ describe("useMekuriEngine image pipeline", () => {
     expect(result.current.state.failures).toEqual({});
     expect(result.current.getPageRequest("page-0")?.attempt).toBe(3);
   });
+
+  it("exposes zoom steps, the keyboard map, and the preload window", () => {
+    const { result } = renderHook(() =>
+      useMekuriEngine({
+        pages: pages(6),
+        keyboardMap: { nextPage: ["KeyN"] },
+        preloadBuffer: { forward: 1, backward: 0 },
+      }),
+    );
+
+    act(() => result.current.zoomIn());
+    expect(result.current.state.zoomScale).toBe(1.5);
+    act(() => result.current.zoomOut());
+    expect(result.current.state.zoomScale).toBe(1);
+
+    expect(result.current.getKeyboardMap().nextPage).toEqual(["KeyN"]);
+
+    act(() => result.current.goToIndex(3));
+    expect(result.current.getPreloadWindow()).toEqual([4]);
+  });
 });

@@ -37,14 +37,20 @@ import type {
   MekuriMode,
   MekuriPage,
   MekuriPoint,
+  MekuriKeyboardMap,
   MekuriSpreadConfig,
   MekuriState,
   MekuriZoneMap,
 } from "./types";
 import { DEFAULT_SPREAD_CONFIG } from "./types";
+import { mergeKeyboardMap } from "./keyboard";
+import { DEFAULT_PRELOAD_BUFFER, preloadWindow, type MekuriPreloadBuffer } from "./preload";
 
 /** Upper zoom bound used when the host configures none. */
 export const DEFAULT_MAX_ZOOM_SCALE = 4;
+
+/** Multiplier one zoom step applies when the host configures none. */
+export const DEFAULT_ZOOM_STEP = 1.5;
 
 export interface MekuriEngineOptions {
   pages: MekuriPage[];
@@ -96,6 +102,20 @@ export interface MekuriEngineOptions {
    * zooming entirely. */
   maxZoomScale?: number;
 
+  /** Multiplier one zoom step applies. Defaults to 1.5. */
+  zoomStep?: number;
+
+  /** Keyboard bindings merged over the defaults; see mergeKeyboardMap. */
+  keyboardMap?: Partial<MekuriKeyboardMap>;
+
+  /** Imperative keyboard suppression. While true, host modals, dialogs, and
+   * focused text inputs own the keyboard and no shortcut is dispatched. */
+  isKeyboardSuppressed?: boolean;
+
+  /** Bounded preload buffer around the reading position. Defaults to three
+   * pages forward and one back. */
+  preloadBuffer?: MekuriPreloadBuffer;
+
   /** Monotonic clock for sample throttling. Defaults to Date.now;
    * injectable for deterministic tests. */
   now?: () => number;
@@ -120,7 +140,19 @@ export interface MekuriEngine {
    * scale only, so the matrix math stays with the code that applies it. */
   setZoomScale(scale: number, origin?: MekuriPoint): void;
   resetZoom(): void;
+  /** Multiplies the scale by the zoom step, clamped to getZoomBounds. */
+  zoomIn(): void;
+  /** Divides the scale by the zoom step; the floor is 1, so zooming out from
+   * an unzoomed surface is a no-op. */
+  zoomOut(): void;
   getZoomBounds(): MekuriZoomBounds;
+  /** Keyboard bindings in force, host overrides merged over the defaults. */
+  getKeyboardMap(): MekuriKeyboardMap;
+  /** True while the host holds the keyboard through the isKeyboardSuppressed
+   * option. Read live; input layers consult it before dispatching. */
+  isKeyboardSuppressed(): boolean;
+  /** Bounded page indices to warm around the reading position. */
+  getPreloadWindow(): number[];
   toggleHUD(force?: boolean): void;
   getReadingPosition(): MekuriReadingPosition;
   /** Feeds viewport scroll state from the view layer; resolves the dominant
@@ -551,6 +583,37 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     return { min: 1, max };
   }
 
+  function zoomStep(): number {
+    const configured = liveOptions.zoomStep;
+    return configured !== undefined && Number.isFinite(configured) && configured > 1
+      ? configured
+      : DEFAULT_ZOOM_STEP;
+  }
+
+  function zoomIn(): void {
+    setZoomScale(state.zoomScale * zoomStep());
+  }
+
+  function zoomOut(): void {
+    setZoomScale(state.zoomScale / zoomStep());
+  }
+
+  function getKeyboardMap(): MekuriKeyboardMap {
+    return mergeKeyboardMap(liveOptions.keyboardMap);
+  }
+
+  function isKeyboardSuppressed(): boolean {
+    return liveOptions.isKeyboardSuppressed === true;
+  }
+
+  function getPreloadWindow(): number[] {
+    return preloadWindow({
+      pageIndex: clampedPageIndex(),
+      totalPages: totalPages(),
+      buffer: liveOptions.preloadBuffer ?? DEFAULT_PRELOAD_BUFFER,
+    });
+  }
+
   function toggleHUD(force?: boolean): void {
     isHUDVisible = force ?? !isHUDVisible;
     notify();
@@ -653,7 +716,12 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     setDirection,
     setZoomScale,
     resetZoom,
+    zoomIn,
+    zoomOut,
     getZoomBounds,
+    getKeyboardMap,
+    isKeyboardSuppressed,
+    getPreloadWindow,
     toggleHUD,
     getReadingPosition,
     reportScroll,

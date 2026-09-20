@@ -3,6 +3,7 @@
 // without any DOM, which is the SSR-safety guarantee.
 import { describe, expect, it, vi } from "vite-plus/test";
 import { createMekuriEngine, type MekuriEngineOptions } from "./store";
+import { DEFAULT_KEYBOARD_MAP } from "./keyboard";
 import { DEFAULT_SPREAD_CONFIG, type MekuriPage } from "./types";
 import { customZoneMap, DEFAULT_MANGA_ZONE_MAP } from "./zones";
 
@@ -441,5 +442,87 @@ describe("tap zone map option", () => {
     const before = engine.getState();
     expect(engine.getState()).toBe(before);
     expect(before.activeZoneMap).toBe(custom);
+  });
+});
+
+describe("zoom steps", () => {
+  it("multiplies and divides the scale by the default step", () => {
+    const { engine } = harness();
+    engine.zoomIn();
+    expect(engine.getState().zoomScale).toBe(1.5);
+    engine.zoomIn();
+    expect(engine.getState().zoomScale).toBe(2.25);
+    engine.zoomOut();
+    expect(engine.getState().zoomScale).toBe(1.5);
+  });
+
+  it("honors a host step and clamps to the zoom bounds", () => {
+    const { engine } = harness({ zoomStep: 2, maxZoomScale: 3 });
+    engine.zoomIn();
+    expect(engine.getState().zoomScale).toBe(2);
+    engine.zoomIn();
+    expect(engine.getState().zoomScale).toBe(3);
+  });
+
+  it("never zooms below the unzoomed scale", () => {
+    const { engine } = harness();
+    engine.zoomOut();
+    expect(engine.getState().zoomScale).toBe(1);
+  });
+
+  it("falls back to the default step when the option is unusable", () => {
+    for (const zoomStep of [1, 0, -3, Number.NaN]) {
+      const { engine } = harness({ zoomStep });
+      engine.zoomIn();
+      expect([zoomStep, engine.getState().zoomScale]).toEqual([zoomStep, 1.5]);
+    }
+  });
+});
+
+describe("keyboard options", () => {
+  it("merges host overrides over the defaults and reads them live", () => {
+    const { engine, options } = harness({ keyboardMap: { nextPage: ["KeyN"] } });
+    expect(engine.getKeyboardMap().nextPage).toEqual(["KeyN"]);
+    expect(engine.getKeyboardMap().prevPage).toEqual(DEFAULT_KEYBOARD_MAP.prevPage);
+
+    options.keyboardMap = { nextPage: ["KeyJ"], toggleHUD: [] };
+    expect(engine.getKeyboardMap().nextPage).toEqual(["KeyJ"]);
+    expect(engine.getKeyboardMap().toggleHUD).toEqual([]);
+  });
+
+  it("reports keyboard suppression from the host option", () => {
+    const { engine, options } = harness();
+    expect(engine.isKeyboardSuppressed()).toBe(false);
+    options.isKeyboardSuppressed = true;
+    expect(engine.isKeyboardSuppressed()).toBe(true);
+  });
+});
+
+describe("preload window", () => {
+  it("returns the default window around the reading position", () => {
+    const { engine } = harness();
+    engine.goToIndex(3);
+    expect(engine.getPreloadWindow()).toEqual([2, 4, 5]);
+  });
+
+  it("clamps the window to the chapter edges", () => {
+    const { engine } = harness();
+    expect(engine.getPreloadWindow()).toEqual([1, 2, 3]);
+    engine.goToIndex(5);
+    expect(engine.getPreloadWindow()).toEqual([4]);
+  });
+
+  it("follows a host buffer live", () => {
+    const { engine, options } = harness({ preloadBuffer: { forward: 0, backward: 2 } });
+    engine.goToIndex(3);
+    expect(engine.getPreloadWindow()).toEqual([1, 2]);
+
+    options.preloadBuffer = { forward: 1, backward: 0 };
+    expect(engine.getPreloadWindow()).toEqual([4]);
+  });
+
+  it("returns nothing for an empty chapter", () => {
+    const { engine } = harness({ pages: [] });
+    expect(engine.getPreloadWindow()).toEqual([]);
   });
 });
