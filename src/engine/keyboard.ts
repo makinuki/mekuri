@@ -4,7 +4,6 @@
 // touching the others. Reading direction is applied at dispatch: the map keeps
 // physical keys, and RTL swaps the page-turn pair, so no RTL variant exists.
 
-import type { MekuriEngine } from "./store";
 import type { MekuriDirection, MekuriKeyboardMap } from "./types";
 
 export type MekuriKeyboardAction = keyof MekuriKeyboardMap;
@@ -28,8 +27,23 @@ export const KEYBOARD_ACTIONS: MekuriKeyboardAction[] = [
   "resetZoom",
 ];
 
+/** Engine surface the dispatcher reads. Every member is stable for the life of
+ * the engine, and the React binding output satisfies this shape, so a host
+ * that renders its own markup can attach the dispatcher without reaching for
+ * the vanilla store. */
+export interface MekuriKeyboardEngine {
+  getState(): { direction: MekuriDirection };
+  next(): void;
+  prev(): void;
+  toggleHUD(force?: boolean): void;
+  zoomIn(): void;
+  zoomOut(): void;
+  resetZoom(): void;
+  isKeyboardSuppressed(): boolean;
+}
+
 export interface MekuriKeyboardOptions {
-  engine: MekuriEngine;
+  engine: MekuriKeyboardEngine;
   /** Reading surface. Used to resolve the document and to recognize focus that
    * belongs to a host control inside it. */
   element: HTMLElement;

@@ -11,6 +11,10 @@ import type { MekuriDirection, MekuriKeyboardMap, MekuriMode, MekuriState } from
 export interface MekuriEngineOutput {
   state: MekuriState;
 
+  /** Imperative state access with the same shape as the vanilla store, for
+   * layers that only hold the hook output. */
+  getState: () => MekuriState;
+
   /** Imperative synchronous position access; authoritative for persistence. */
   getReadingPosition: () => MekuriReadingPosition;
 
@@ -34,6 +38,9 @@ export interface MekuriEngineOutput {
 
   /** Keyboard bindings in force, for host shortcut help surfaces. */
   getKeyboardMap: () => MekuriKeyboardMap;
+  /** True while the host holds the keyboard, for a host that attaches the
+   * engine dispatcher to its own markup. */
+  isKeyboardSuppressed: () => boolean;
   /** Bounded page indices to warm around the reading position. */
   getPreloadWindow: () => number[];
 
@@ -77,6 +84,7 @@ export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutpu
 
   return {
     state,
+    getState: engine.getState,
     getReadingPosition: engine.getReadingPosition,
     next: engine.next,
     prev: engine.prev,
@@ -90,6 +98,7 @@ export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutpu
     zoomOut: engine.zoomOut,
     getZoomBounds: engine.getZoomBounds,
     getKeyboardMap: engine.getKeyboardMap,
+    isKeyboardSuppressed: engine.isKeyboardSuppressed,
     getPreloadWindow: engine.getPreloadWindow,
     retryPage: engine.retryPage,
     retryAllFailures: engine.retryAllFailures,

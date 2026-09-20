@@ -151,8 +151,11 @@ describe("useMekuriEngine image pipeline", () => {
     expect(result.current.state.zoomScale).toBe(1);
 
     expect(result.current.getKeyboardMap().nextPage).toEqual(["KeyN"]);
+    expect(result.current.getState().pageIndex).toBe(0);
+    expect(result.current.isKeyboardSuppressed()).toBe(false);
 
     act(() => result.current.goToIndex(3));
     expect(result.current.getPreloadWindow()).toEqual([4]);
+    expect(result.current.getState().pageIndex).toBe(3);
   });
 });
