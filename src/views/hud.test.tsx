@@ -81,6 +81,17 @@ describe("MekuriHUD controls", () => {
     expect(hud(container).hidden).toBe(true);
   });
 
+  it("takes a hidden toolbar out of the layout", () => {
+    // The toolbar is laid out inline, which outranks the user-agent rule behind
+    // the hidden attribute, so the hidden state is inline as well.
+    const { container } = renderHud();
+    expect(hud(container).style.display).toBe("flex");
+
+    act(() => click(container, "hud"));
+
+    expect(hud(container).style.display).toBe("none");
+  });
+
   it("returns focus to the reading surface when it hides", () => {
     const { engine, container, surfaceRef } = renderHud();
     const nextButton = control(container, "next");

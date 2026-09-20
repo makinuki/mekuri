@@ -91,6 +91,11 @@ const HUD_STYLE: CSSProperties = {
   pointerEvents: "auto",
 };
 
+/** Inline counterpart of the hidden attribute. The toolbar is laid out with
+ * inline styles, which outrank both the user-agent rule behind the attribute
+ * and any host stylesheet, so the hidden state has to be inline too. */
+const HIDDEN_STYLE: CSSProperties = { display: "none" };
+
 /** Reader control bar. Attributes expose the reading mode to a host
  * stylesheet, and every control dispatches an engine action. */
 export function MekuriHUD({
@@ -126,7 +131,7 @@ export function MekuriHUD({
       aria-orientation="horizontal"
       hidden={!state.isHUDVisible}
       className={className}
-      style={{ ...HUD_STYLE, ...style }}
+      style={{ ...HUD_STYLE, ...(state.isHUDVisible ? null : HIDDEN_STYLE), ...style }}
     >
       {children}
       <MekuriHudButton control="prev" label="Previous page" onClick={() => engine.prev()} />
