@@ -10,7 +10,7 @@
 // with reconciled state, syncControlled reconciles the mirror. A compliant
 // host therefore never observes drift between its state and engine output.
 
-import { alignToSpread, calculateSpreads } from "./spreads";
+import { alignToSpread, calculateSpreads, identitySpreads } from "./spreads";
 import {
   resolvePageFromScrollOffset,
   type MekuriPageOffset,
@@ -211,6 +211,7 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   let spreadCache: {
     pages: MekuriPage[];
     config: MekuriSpreadConfig;
+    mode: MekuriMode;
     spreads: number[][];
   } | null = null;
 
@@ -261,12 +262,20 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     if (
       spreadCache === null ||
       spreadCache.pages !== liveOptions.pages ||
-      spreadCache.config !== state.spreadConfig
+      spreadCache.config !== state.spreadConfig ||
+      spreadCache.mode !== state.mode
     ) {
       spreadCache = {
         pages: liveOptions.pages,
         config: state.spreadConfig,
-        spreads: calculateSpreads(liveOptions.pages, state.spreadConfig),
+        mode: state.mode,
+        // Pairing is a double-page rule. Every other mode holds one page per
+        // position, so its grouping is the identity and a host reading
+        // activeSpreads renders the page the reading position points at.
+        spreads:
+          state.mode === "double"
+            ? calculateSpreads(liveOptions.pages, state.spreadConfig)
+            : identitySpreads(liveOptions.pages.length),
       };
     }
     return spreadCache.spreads;

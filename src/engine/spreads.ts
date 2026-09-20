@@ -92,3 +92,15 @@ export function alignToSpread(pageIndex: number, spreads: number[][]): number {
 
   return spreads[candidate][0];
 }
+
+/** One page per spread. Pairing rules belong to the double-page mode; the
+ * single-page and continuous modes place one page per position, so their
+ * grouping is the identity over the page list. */
+export function identitySpreads(pageCount: number): number[][] {
+  const total = Math.max(0, Math.floor(pageCount));
+  const spreads: number[][] = [];
+  for (let index = 0; index < total; index += 1) {
+    spreads.push([index]);
+  }
+  return spreads;
+}

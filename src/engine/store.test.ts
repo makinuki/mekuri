@@ -55,10 +55,15 @@ describe("uncontrolled store defaults and derivation", () => {
     expect(state.direction).toBe("ltr");
     expect(state.zoomScale).toBe(1);
     expect(state.totalPages).toBe(6);
-    expect(state.activeSpreads).toEqual([[0], [1, 2], [3, 4], [5]]);
+    // Single page mode holds one page per spread, so the reading position and
+    // the rendered spread never disagree.
+    expect(state.activeSpreads).toEqual([[0], [1], [2], [3], [4], [5]]);
     expect(state.isZoomLocked).toBe(false);
     expect(state.isHUDVisible).toBe(true);
     expect(state.failures).toEqual({});
+
+    engine.setMode("double");
+    expect(engine.getState().activeSpreads).toEqual([[0], [1, 2], [3, 4], [5]]);
   });
 
   it("keeps the snapshot stable until state actually changes", () => {
@@ -304,7 +309,7 @@ describe("engine edge cases", () => {
   });
 
   it("recomputes spreads when the host swaps the page list", () => {
-    const { engine, options } = harness();
+    const { engine, options } = harness({ initialState: { mode: "double" } });
     expect(engine.getState().totalPages).toBe(6);
     options.pages = pages(3);
     engine.next();
@@ -359,6 +364,7 @@ describe("page list replacement", () => {
   it("repaginates when dimensions are discovered on a replacement list", () => {
     const options: MekuriEngineOptions = {
       pages: Array.from({ length: 6 }, (_, index) => ({ id: index, width: 800, height: 1200 })),
+      initialState: { mode: "double" },
     };
     const engine = createMekuriEngine(options);
     expect(engine.getState().activeSpreads).toContainEqual([3, 4]);

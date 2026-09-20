@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
-import { alignToSpread, calculateSpreads, isLandscapePage, pageAspectRatio } from "./spreads";
+import {
+  alignToSpread,
+  calculateSpreads,
+  identitySpreads,
+  isLandscapePage,
+  pageAspectRatio,
+} from "./spreads";
 import { DEFAULT_SPREAD_CONFIG, type MekuriPage } from "./types";
 
 function pages(count: number, overrides: Record<number, Partial<MekuriPage>> = {}): MekuriPage[] {
@@ -183,4 +189,24 @@ describe("calculateSpreads and alignToSpread invariants", () => {
       });
     }
   }
+});
+
+describe("identitySpreads", () => {
+  it("places one page per spread", () => {
+    expect(identitySpreads(3)).toEqual([[0], [1], [2]]);
+    expect(identitySpreads(1)).toEqual([[0]]);
+    expect(identitySpreads(0)).toEqual([]);
+  });
+
+  it("normalizes a non-integer or negative count", () => {
+    expect(identitySpreads(-2)).toEqual([]);
+    expect(identitySpreads(2.7)).toEqual([[0], [1]]);
+  });
+
+  it("aligns every index to itself", () => {
+    const spreads = identitySpreads(5);
+    for (let index = 0; index < 5; index += 1) {
+      expect(alignToSpread(index, spreads)).toBe(index);
+    }
+  });
 });
