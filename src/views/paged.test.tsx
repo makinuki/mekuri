@@ -68,6 +68,19 @@ describe("PagedView layout", () => {
     expect(container.querySelector("img")?.getAttribute("alt")).toBe("Sheet 1");
   });
 
+  it("renders one page per position in single mode", () => {
+    const { engine, container } = renderPaged({ initialState: { mode: "single" } });
+
+    act(() => engine.goToIndex(1));
+    const boxes = pageBoxes(container);
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0].getAttribute("data-index")).toBe("1");
+
+    // One step moves one page, so the rendered page never lags the position.
+    act(() => engine.next());
+    expect(pageBoxes(container).map((box) => box.getAttribute("data-index"))).toEqual(["2"]);
+  });
+
   it("renders both pages of a double spread", () => {
     const { engine, container } = renderPaged();
     act(() => engine.setMode("double"));
@@ -250,6 +263,13 @@ describe("PagedView host chrome", () => {
     // The host owns the interstitial; the view only provides the mount point.
     rerender(<PagedView engine={engine} pages={PAGES} boundarySlot={<p>Chapter complete</p>} />);
     expect(container.querySelector("[data-mekuri-boundary]")?.textContent).toBe("Chapter complete");
+  });
+
+  it("mounts nothing while the boundary slot is empty", () => {
+    // An overlay that covers the surface while it holds no content takes every
+    // tap, click, and double tap before the zone map can see them.
+    const { container } = renderPaged({}, { boundarySlot: null });
+    expect(container.querySelector("[data-mekuri-boundary]")).toBeNull();
   });
 
   it("reports the start boundary without moving before the first page", () => {

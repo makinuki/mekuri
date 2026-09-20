@@ -100,7 +100,9 @@ export function WebtoonView({
       {showZoneOverlay ? (
         <MekuriZoneOverlay engine={engine} style={{ position: "absolute", inset: 0 }} />
       ) : null}
-      {boundarySlot === undefined ? null : (
+      {/* See PagedView: an empty mount point would cover the reading surface
+          and take every tap meant for the zone map. */}
+      {boundarySlot === undefined || boundarySlot === null ? null : (
         <div
           data-mekuri-boundary=""
           style={{

@@ -201,7 +201,9 @@ export function PagedView({
         </div>
         {showZoneOverlay ? <MekuriZoneOverlay engine={engine} /> : null}
       </div>
-      {boundarySlot === undefined ? null : (
+      {/* The mount point exists only while the host has content for it: an
+          empty overlay would cover the surface and take every tap. */}
+      {boundarySlot === undefined || boundarySlot === null ? null : (
         <div
           data-mekuri-boundary=""
           style={{
