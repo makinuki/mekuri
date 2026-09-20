@@ -25,8 +25,9 @@ export interface MekuriEngineOutput {
   setZoomScale: (scale: number, origin?: { x: number; y: number }) => void;
   resetZoom: () => void;
 
-  /** Typed DOM prop bindings for the host's containers. Populated by the
-   * gesture layer; stable and empty until then. */
+  /** Typed DOM prop bindings for the host's containers. Both records are
+   * stable for a given mode and zoom lock; the gesture layer refines the
+   * dead-zone contract on the viewport. */
   getContainerProps: () => HTMLAttributes<HTMLElement>;
   getViewportProps: () => HTMLAttributes<HTMLElement>;
 }
@@ -61,7 +62,7 @@ export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutpu
     toggleHUD: engine.toggleHUD,
     setZoomScale: engine.setZoomScale,
     resetZoom: engine.resetZoom,
-    getContainerProps: () => ({}),
-    getViewportProps: () => ({}),
+    getContainerProps: engine.getContainerProps,
+    getViewportProps: engine.getViewportProps,
   };
 }

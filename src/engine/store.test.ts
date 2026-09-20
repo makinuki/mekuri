@@ -342,3 +342,41 @@ describe("engine edge cases", () => {
     });
   });
 });
+
+describe("page list replacement", () => {
+  it("keeps derived state stable when a fresh list carries the same dimensions", () => {
+    const options: MekuriEngineOptions = { pages: pages(6) };
+    const engine = createMekuriEngine(options);
+    const before = engine.getState();
+
+    options.pages = pages(6);
+
+    expect(engine.getState()).toBe(before);
+  });
+
+  it("repaginates when dimensions are discovered on a replacement list", () => {
+    const options: MekuriEngineOptions = {
+      pages: Array.from({ length: 6 }, (_, index) => ({ id: index, width: 800, height: 1200 })),
+    };
+    const engine = createMekuriEngine(options);
+    expect(engine.getState().activeSpreads).toContainEqual([3, 4]);
+
+    options.pages = options.pages.map((page, index) =>
+      index === 3 ? { ...page, width: 1600, height: 900 } : page,
+    );
+
+    expect(engine.getState().activeSpreads).toContainEqual([3]);
+    expect(engine.getState().pageIndex).toBe(0);
+  });
+
+  it("rebuilds when the list length changes", () => {
+    const options: MekuriEngineOptions = { pages: pages(6) };
+    const engine = createMekuriEngine(options);
+    const before = engine.getState();
+
+    options.pages = pages(4);
+
+    expect(engine.getState()).not.toBe(before);
+    expect(engine.getState().totalPages).toBe(4);
+  });
+});

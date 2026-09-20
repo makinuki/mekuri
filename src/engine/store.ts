@@ -16,6 +16,8 @@ import {
   type MekuriPageOffset,
   type MekuriReadingPosition,
 } from "./scroll";
+import { containerProps, viewportProps } from "./props";
+import type { MekuriContainerProps, MekuriViewportProps } from "./props";
 import { DEFAULT_MANGA_ZONE_MAP } from "./zones";
 import type {
   ChapterBoundary,
@@ -66,6 +68,11 @@ export interface MekuriEngine {
   /** Feeds viewport scroll state from the view layer; resolves the dominant
    * page and emits position samples per the throttling contract. */
   reportScroll(scrollOffset: number, pageOffsets: MekuriPageOffset[]): void;
+  /** Typed DOM prop bindings for host-owned containers. The records are
+   * stable for a given mode and zoom lock so spreads do not churn child props
+   * between renders. */
+  getContainerProps(): MekuriContainerProps;
+  getViewportProps(): MekuriViewportProps;
   /** Reconciles the internal mirror with host-owned state. No-op in
    * uncontrolled mode. Safe to call during render; never notifies. */
   syncControlled(state: MekuriControlledState | undefined): void;
@@ -92,7 +99,30 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   let isHUDVisible = true;
   let relativeOffset = 0;
   let lastSampleAt = Number.NEGATIVE_INFINITY;
+  // Page list the cached snapshot was built from. Dimensions are the only page
+  // input to the spread math, so a list that keeps its dimensions keeps its
+  // derived state even when the host hands over a fresh array on every render.
+  let snapshotPages: MekuriPage[] = liveOptions.pages;
+  const dimensionKeys = new WeakMap<MekuriPage, string>();
   let snapshot = buildSnapshot();
+
+  function dimensionKeyOf(page: MekuriPage): string {
+    const cached = dimensionKeys.get(page);
+    if (cached !== undefined) return cached;
+    const key = `${page.width ?? ""}x${page.height ?? ""}@${page.aspectRatio ?? ""}`;
+    dimensionKeys.set(page, key);
+    return key;
+  }
+
+  function pagesChanged(): boolean {
+    const pages = liveOptions.pages;
+    if (snapshotPages === pages) return false;
+    if (snapshotPages.length !== pages.length) return true;
+    for (let index = 0; index < pages.length; index += 1) {
+      if (dimensionKeyOf(snapshotPages[index]) !== dimensionKeyOf(pages[index])) return true;
+    }
+    return false;
+  }
 
   function totalPages(): number {
     return liveOptions.pages.length;
@@ -142,6 +172,7 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   // Rebuilds the cached snapshot without notifying. Used for render-time
   // reconciliation where listener notification would be re-entrant.
   function rebuild(): void {
+    snapshotPages = liveOptions.pages;
     snapshot = buildSnapshot();
   }
 
@@ -287,6 +318,33 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     }
   }
 
+  const containerDomProps: MekuriContainerProps = containerProps();
+  let viewportDomProps: {
+    mode: MekuriMode;
+    isZoomLocked: boolean;
+    props: MekuriViewportProps;
+  } | null = null;
+
+  function getContainerProps(): MekuriContainerProps {
+    return containerDomProps;
+  }
+
+  function getViewportProps(): MekuriViewportProps {
+    const isZoomLocked = state.zoomScale > 1;
+    if (
+      viewportDomProps === null ||
+      viewportDomProps.mode !== state.mode ||
+      viewportDomProps.isZoomLocked !== isZoomLocked
+    ) {
+      viewportDomProps = {
+        mode: state.mode,
+        isZoomLocked,
+        props: viewportProps(state.mode, isZoomLocked),
+      };
+    }
+    return viewportDomProps.props;
+  }
+
   function syncControlled(next?: MekuriControlledState): void {
     if (!isControlled() || !next) return;
     let changed = false;
@@ -323,7 +381,13 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   }
 
   return {
-    getState: () => snapshot,
+    getState: () => {
+      // The host owns the page list and replaces it in place; rebuild the
+      // snapshot so derived values (spreads above all) never lag behind a page
+      // list whose dimensions the host already swapped.
+      if (pagesChanged()) rebuild();
+      return snapshot;
+    },
     subscribe,
     next,
     prev,
@@ -335,6 +399,8 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     toggleHUD,
     getReadingPosition,
     reportScroll,
+    getContainerProps,
+    getViewportProps,
     syncControlled,
   };
 }

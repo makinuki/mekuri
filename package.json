@@ -16,6 +16,9 @@
     "test:watch": "vp test --watch",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.14.13"
+  },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.2",

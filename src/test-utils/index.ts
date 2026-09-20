@@ -1,3 +1,5 @@
-// Test utilities for host integrations: touch sequence simulators, viewport
-// dimension mocks, and observer lifecycle mocks that work under JSDOM.
-export {};
+// Test utilities for host integrations. Gesture simulators arrive with the
+// gesture layer; this module starts with the geometry contracts the
+// virtualized views need under jsdom.
+export * from "./viewport";
+export * from "./observers";
