@@ -1,0 +1,67 @@
+// React binding for the vanilla engine store. The hook owns no logic: it
+// reconciles host-controlled state during render, subscribes via
+// useSyncExternalStore (SSR-safe through the server snapshot), and forwards
+// actions. All behavior lives in store.ts.
+import { useMemo, useRef, useSyncExternalStore, type HTMLAttributes } from "react";
+import { createMekuriEngine, type MekuriEngineOptions } from "./store";
+import type { MekuriReadingPosition } from "./scroll";
+import type { MekuriDirection, MekuriMode, MekuriState } from "./types";
+
+export interface MekuriEngineOutput {
+  state: MekuriState;
+
+  /** Imperative synchronous position access; authoritative for persistence. */
+  getReadingPosition: () => MekuriReadingPosition;
+
+  next: () => void;
+  prev: () => void;
+  /** Lands on a page (spread start in double mode) at an optional fractional
+   * offset for exact position restores. */
+  goToIndex: (index: number, relativeOffset?: number) => void;
+  setMode: (mode: MekuriMode) => void;
+  setDirection: (direction: MekuriDirection) => void;
+  toggleHUD: (force?: boolean) => void;
+
+  setZoomScale: (scale: number, origin?: { x: number; y: number }) => void;
+  resetZoom: () => void;
+
+  /** Typed DOM prop bindings for the host's containers. Populated by the
+   * gesture layer; stable and empty until then. */
+  getContainerProps: () => HTMLAttributes<HTMLElement>;
+  getViewportProps: () => HTMLAttributes<HTMLElement>;
+}
+
+export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutput {
+  // The engine reads options through a stable object whose fields are
+  // refreshed on every render, so callbacks and controlled state stay live
+  // without recreating the store.
+  const optionsRef = useRef<MekuriEngineOptions | null>(null);
+  if (optionsRef.current === null) {
+    optionsRef.current = { ...options };
+  } else {
+    Object.assign(optionsRef.current, options);
+  }
+
+  const engine = useMemo(() => createMekuriEngine(optionsRef.current as MekuriEngineOptions), []);
+
+  // Render-time reconciliation for controlled mode: idempotent, never
+  // notifies listeners, so React's snapshot comparison stays stable.
+  engine.syncControlled(options.state);
+
+  const state = useSyncExternalStore(engine.subscribe, engine.getState, engine.getState);
+
+  return {
+    state,
+    getReadingPosition: engine.getReadingPosition,
+    next: engine.next,
+    prev: engine.prev,
+    goToIndex: engine.goToIndex,
+    setMode: engine.setMode,
+    setDirection: engine.setDirection,
+    toggleHUD: engine.toggleHUD,
+    setZoomScale: engine.setZoomScale,
+    resetZoom: engine.resetZoom,
+    getContainerProps: () => ({}),
+    getViewportProps: () => ({}),
+  };
+}

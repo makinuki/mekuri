@@ -1,7 +1,10 @@
 // Headless engine entry point. Re-exports the shared types, the pure page
-// math, and (as the engine grows) the reader state machine. This module must
-// never import React DOM bindings, CSS, or browser-only globals at module
-// scope.
+// math, the state store, and the React binding. The store and math modules
+// must never import React DOM bindings, CSS, or browser-only globals at
+// module scope.
 export * from "./types";
 export * from "./spreads";
 export * from "./scroll";
+export * from "./zones";
+export * from "./store";
+export * from "./useMekuriEngine";
