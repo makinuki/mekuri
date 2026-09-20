@@ -1,0 +1,4 @@
+{
+  "name": "Sample webtoon",
+  "chapters": [{ "name": "Strip", "pages": ["01.png", "02.png", "03.png", "04-tall.png"] }]
+}

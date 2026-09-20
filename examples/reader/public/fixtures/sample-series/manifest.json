@@ -1,0 +1,10 @@
+{
+  "name": "Sample series",
+  "chapters": [
+    {
+      "name": "Ch 1",
+      "pages": ["Ch 1/01.png", "Ch 1/02.png", "Ch 1/03.png", "Ch 1/04.png", "Ch 1/05.png"]
+    },
+    { "name": "Ch 2", "pages": ["Ch 2/01.png", "Ch 2/02.png", "Ch 2/03.png"] }
+  ]
+}

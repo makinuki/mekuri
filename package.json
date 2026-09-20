@@ -14,7 +14,10 @@
     "test": "vp test",
     "test:run": "vp test --run",
     "test:watch": "vp test --watch",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "example:dev": "vp dev examples/reader",
+    "example:dev:lan": "vp dev examples/reader --host",
+    "example:build": "vp build examples/reader"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.13"
@@ -24,6 +27,7 @@
     "@types/node": "^26.6.2",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
+    "fflate": "^0.8.3",
     "jsdom": "^30.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

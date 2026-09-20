@@ -1,0 +1,277 @@
+/* Lab chrome. Deliberately plain: this is a testing tool, and every pixel that
+   is not the reader itself should stay out of the way. */
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0d0d10;
+  color: #e8e8ec;
+  font:
+    13px/1.5 Consolas,
+    "SF Mono",
+    Menlo,
+    monospace;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 4px 8px;
+  border: 1px solid #3a3a44;
+  border-radius: 4px;
+  background: #1b1b21;
+  cursor: pointer;
+}
+
+button.active {
+  border-color: #6ea8ff;
+  background: #24313f;
+}
+
+.lab {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  /* A definite row keeps the stage bounded. Without it the grid row is sized
+     by its content, so the continuous column would stretch the reader to the
+     height of the whole chapter and the document would scroll instead of the
+     reading surface. */
+  grid-template-rows: minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+}
+
+.lab-controls {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  border-right: 1px solid #26262c;
+}
+
+.lab-controls h1 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.lab-controls h2 {
+  margin: 0 0 6px;
+  color: #9a9aa8;
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.lab-controls section {
+  margin-bottom: 18px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.lab-controls label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.lab-controls label.check {
+  justify-content: flex-start;
+}
+
+.status {
+  margin: 6px 0 0;
+  color: #9a9aa8;
+  white-space: pre-wrap;
+}
+
+.warn {
+  margin: 6px 0 0;
+  color: #ffb4a2;
+  white-space: pre-wrap;
+}
+
+.chapters {
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.chapters li {
+  margin-bottom: 4px;
+}
+
+.chapters button {
+  width: 100%;
+  text-align: left;
+}
+
+.lab-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+}
+
+.stage-caption {
+  margin: 0 0 8px;
+  color: #9a9aa8;
+}
+
+.stage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+}
+
+.reader {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #000;
+  border: 1px solid #26262c;
+}
+
+.reader .empty {
+  margin: 0;
+  padding: 24px;
+  color: #6a6a78;
+}
+
+.host-hud {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: rgba(16, 16, 20, 0.72);
+  border-radius: 8px;
+}
+
+.host-hud[hidden] {
+  display: none;
+}
+
+.host-hud-readout {
+  min-width: 64px;
+  text-align: center;
+}
+
+.inspector {
+  flex: 0 0 auto;
+  max-height: 34vh;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid #26262c;
+  border-radius: 4px;
+}
+
+.inspector summary {
+  cursor: pointer;
+  color: #9a9aa8;
+}
+
+.inspector pre {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.boundary-card {
+  padding: 16px 20px;
+  background: #14141a;
+  border: 1px solid #3a3a44;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.boundary-card p {
+  margin: 0 0 10px;
+}
+
+/* Phone layout. The reading surface leads and keeps one full viewport height,
+   so the spreads are judged at the same size as on a desktop, and the controls
+   follow it in the normal page flow instead of squeezing the reader into a
+   sliver beside a fixed width column. */
+@media (max-width: 900px) {
+  .lab {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .lab-main {
+    order: -1;
+    padding: 0;
+  }
+
+  .stage-caption {
+    margin: 0;
+    padding: 8px 12px;
+  }
+
+  .stage {
+    flex: none;
+    gap: 0;
+  }
+
+  .reader {
+    flex: none;
+    height: 100dvh;
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .inspector {
+    max-height: none;
+    margin: 8px 12px;
+  }
+
+  .lab-controls {
+    overflow: visible;
+    padding: 12px;
+    border-top: 1px solid #26262c;
+    border-right: 0;
+  }
+
+  .chapters {
+    max-height: none;
+  }
+}
+
+/* Touch targets. The lab chrome is dense on purpose, but a control a finger
+   cannot hit reliably makes the reader untestable on a phone. */
+@media (pointer: coarse) {
+  button,
+  select,
+  input[type="number"] {
+    min-height: 44px;
+  }
+
+  .row button {
+    flex: 1 1 auto;
+  }
+}

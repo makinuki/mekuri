@@ -15,7 +15,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@makinuki/mekuri": ["./src/index.ts"],
+      "@makinuki/mekuri/*": ["./src/*/index.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "examples"]
 }

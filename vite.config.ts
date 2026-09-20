@@ -26,6 +26,9 @@ export default defineConfig({
     },
   },
   test: { environment: "jsdom" },
-  lint: { ignorePatterns: ["dist/**", "node_modules/**"] },
-  fmt: { ignorePatterns: ["dist/**", "node_modules/**"] },
+  // Build output, installed packages, and the untracked planning and scratch
+  // tree stay out of lint and format runs, so the gates only cover content a
+  // host or contributor consumes.
+  lint: { ignorePatterns: ["dist/**", "node_modules/**", "_internal/**"] },
+  fmt: { ignorePatterns: ["dist/**", "node_modules/**", "_internal/**"] },
 });

@@ -3,6 +3,7 @@
 
 # Build output
 /dist/
+/examples/reader/dist/
 
 # Env
 .env
