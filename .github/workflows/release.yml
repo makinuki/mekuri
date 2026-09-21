@@ -1,9 +1,3 @@
-# Publishes @makinuki/mekuri to npm when a vX.Y.Z tag lands on master.
-# Authentication uses npm Trusted Publishing (OIDC); the package must
-# list this repository and workflow filename in its Trusted Publisher
-# settings on npmjs.com. No NPM_TOKEN secret is required or used.
-# The build runs here because dist is gitignored and is what gets packed.
-
 name: Release
 
 on:

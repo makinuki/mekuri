@@ -78,29 +78,40 @@ without mounting anything.
 
 ## Views quickstart
 
-The prebuilt views render the same engine state and stay replaceable: mount
-the default stylesheet once, then a view per mode.
+The prebuilt views render a vanilla engine store and stay replaceable: create
+the engine once per page list, mount the default stylesheet, then a view per
+mode. Hosts writing their own markup use the `useMekuriEngine` hook instead
+(see the engine quickstart above).
 
 ```tsx
-import { useMekuriEngine } from "@makinuki/mekuri/engine";
+import { useMemo } from "react";
+import { createMekuriEngine } from "@makinuki/mekuri/engine";
+import type { MekuriPage } from "@makinuki/mekuri/engine";
 import { MekuriViewStyles, PagedView, WebtoonView } from "@makinuki/mekuri/views";
 
 function Reader({ pages }: { pages: MekuriPage[] }) {
-  const reader = useMekuriEngine({ pages, resolveSrc: (page) => String(page.metadata?.src ?? "") });
-  const continuous =
-    reader.state.mode === "continuous-webtoon" || reader.state.mode === "continuous-vertical";
+  const engine = useMemo(
+    () =>
+      createMekuriEngine({
+        pages,
+        resolveSrc: (page) => String(page.metadata?.src ?? ""),
+      }),
+    [pages],
+  );
+  const mode = engine.getState().mode;
+  const continuous = mode === "continuous-webtoon" || mode === "continuous-vertical";
 
   return (
     <div style={{ height: "100dvh" }}>
       <MekuriViewStyles />
       {continuous ? (
         <WebtoonView
-          engine={reader}
+          engine={engine}
           pages={pages}
-          gap={reader.state.mode === "continuous-vertical" ? 8 : 0}
+          gap={mode === "continuous-vertical" ? 8 : 0}
         />
       ) : (
-        <PagedView engine={reader} pages={pages} />
+        <PagedView engine={engine} pages={pages} />
       )}
     </div>
   );
