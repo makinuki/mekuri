@@ -1,14 +1,39 @@
 {
   "name": "@makinuki/mekuri",
   "version": "0.1.0",
-  "private": true,
   "description": "Headless-first manga and webtoon reader engine and view library",
   "license": "MIT",
+  "author": { "name": "Byururu-sama", "url": "https://github.com/Byururu-sama" },
   "type": "module",
   "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./engine": {
+      "types": "./dist/engine/index.d.ts",
+      "import": "./dist/engine.js"
+    },
+    "./views": {
+      "types": "./dist/views/index.d.ts",
+      "import": "./dist/views.js"
+    },
+    "./test-utils": {
+      "types": "./dist/test-utils/index.d.ts",
+      "import": "./dist/test-utils.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "packageManager": "pnpm@11.25.0",
   "scripts": {
     "dev": "vp dev",
-    "build": "vp build",
+    "build": "vp build && tsc --emitDeclarationOnly -p tsconfig.dts.json",
     "check": "vp check",
     "check:fix": "vp check --fix",
     "test": "vp test",
