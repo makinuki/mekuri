@@ -23,10 +23,7 @@ const isBump = ["patch", "minor", "major"].includes(arg);
 // leading zeros. Returns [major, minor, patch] or null.
 function parseVersion(value) {
   const parts = String(value ?? "").split(".");
-  if (
-    parts.length !== 3 ||
-    parts.some((p) => !/^(0|[1-9][0-9]*)$/.test(p))
-  ) {
+  if (parts.length !== 3 || parts.some((p) => !/^(0|[1-9][0-9]*)$/.test(p))) {
     return null;
   }
   return parts.map(Number);
@@ -105,10 +102,7 @@ fs.writeFileSync(
 // One targeted edit keeps the rest of package.json byte-identical,
 // including formatting and field order.
 raw.version = next;
-fs.writeFileSync(
-  "package.json",
-  `${JSON.stringify(raw, null, 2)}\n`,
-);
+fs.writeFileSync("package.json", `${JSON.stringify(raw, null, 2)}\n`);
 
 git("add package.json CHANGELOG.md");
 execSync(`git commit -m "chore(release): ${next}"`, { stdio: "inherit" });

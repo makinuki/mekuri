@@ -105,11 +105,7 @@ function Reader({ pages }: { pages: MekuriPage[] }) {
     <div style={{ height: "100dvh" }}>
       <MekuriViewStyles />
       {continuous ? (
-        <WebtoonView
-          engine={engine}
-          pages={pages}
-          gap={mode === "continuous-vertical" ? 8 : 0}
-        />
+        <WebtoonView engine={engine} pages={pages} gap={mode === "continuous-vertical" ? 8 : 0} />
       ) : (
         <PagedView engine={engine} pages={pages} />
       )}
