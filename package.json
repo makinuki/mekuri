@@ -46,7 +46,8 @@
     "example:build:dist": "vp build examples/reader --mode dist",
     "example:preview": "vp preview examples/reader",
     "test:e2e": "playwright test",
-    "test:e2e:dist": "playwright test --config playwright.dist.config.ts"
+    "test:e2e:dist": "playwright test --config playwright.dist.config.ts",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.13"
