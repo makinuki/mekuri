@@ -265,14 +265,24 @@ export function App(): ReactElement {
               sample series cbz
             </button>
           </div>
-          <p className="status">{status}</p>
+          <p className="status" data-lab-status="source">
+            {status}
+          </p>
           {undecodable.length === 0 ? null : (
             <p className="warn">{"No image decoded for: " + undecodable.join(", ")}</p>
           )}
-          <input ref={folderRef} type="file" multiple hidden onChange={handleFolder} />
+          <input
+            ref={folderRef}
+            type="file"
+            data-lab-control="folder"
+            multiple
+            hidden
+            onChange={handleFolder}
+          />
           <input
             ref={filesRef}
             type="file"
+            data-lab-control="images"
             accept="image/*"
             multiple
             hidden
@@ -281,6 +291,7 @@ export function App(): ReactElement {
           <input
             ref={archiveRef}
             type="file"
+            data-lab-control="archive"
             accept=".cbz,application/zip"
             hidden
             onChange={(event) => void handleArchive(event)}
@@ -309,6 +320,7 @@ export function App(): ReactElement {
           <label>
             surface
             <select
+              data-lab-control="surface"
               value={surface}
               onChange={(event) => setSurface(event.target.value as LabSurface)}
             >
@@ -318,7 +330,11 @@ export function App(): ReactElement {
           </label>
           <label>
             mode
-            <select value={mode} onChange={(event) => setMode(event.target.value as MekuriMode)}>
+            <select
+              data-lab-control="mode"
+              value={mode}
+              onChange={(event) => setMode(event.target.value as MekuriMode)}
+            >
               {MODES.map((value) => (
                 <option key={value} value={value}>
                   {value}
@@ -329,6 +345,7 @@ export function App(): ReactElement {
           <label>
             direction
             <select
+              data-lab-control="direction"
               value={direction}
               onChange={(event) => setDirection(event.target.value as MekuriDirection)}
             >
@@ -339,6 +356,7 @@ export function App(): ReactElement {
           <label className="check">
             <input
               type="checkbox"
+              data-lab-control="hud"
               checked={hud}
               onChange={(event) => setHud(event.target.checked)}
             />
@@ -347,6 +365,7 @@ export function App(): ReactElement {
           <label className="check">
             <input
               type="checkbox"
+              data-lab-control="zone-overlay"
               checked={zoneOverlay}
               onChange={(event) => setZoneOverlay(event.target.checked)}
             />
@@ -355,6 +374,7 @@ export function App(): ReactElement {
           <label className="check">
             <input
               type="checkbox"
+              data-lab-control="cover-alone"
               checked={coverAlone}
               onChange={(event) => setCoverAlone(event.target.checked)}
             />
@@ -367,6 +387,7 @@ export function App(): ReactElement {
               min="1"
               max="3"
               step="0.1"
+              data-lab-control="landscape"
               value={landscapeThreshold}
               onChange={(event) => setLandscapeThreshold(Number(event.target.value))}
             />
@@ -374,6 +395,7 @@ export function App(): ReactElement {
           <label className="check">
             <input
               type="checkbox"
+              data-lab-control="broken-page"
               checked={brokenPage}
               onChange={(event) => setBrokenPage(event.target.checked)}
             />
@@ -382,14 +404,16 @@ export function App(): ReactElement {
         </section>
         <section>
           <h2>Boundary</h2>
-          <p className="status">{boundary === null ? "none reached" : boundary}</p>
+          <p className="status" data-lab-status="boundary">
+            {boundary === null ? "none reached" : boundary}
+          </p>
           <button type="button" onClick={() => setBoundary(boundary === null ? "end" : null)}>
             toggle test interstitial
           </button>
         </section>
       </aside>
       <main className="lab-main">
-        <p className="stage-caption">
+        <p className="stage-caption" data-lab-caption="">
           {source === null || chapter === undefined
             ? "no source loaded"
             : source.label +

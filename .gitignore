@@ -4,9 +4,15 @@
 # Build output
 /dist/
 /examples/reader/dist/
+*.tsbuildinfo
 
 # Env
 .env
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
 
 # OS
 .DS_Store

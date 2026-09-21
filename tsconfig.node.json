@@ -6,7 +6,15 @@
     "moduleResolution": "Bundler",
     "allowSyntheticDefaultImports": true,
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["node"]
   },
-  "include": ["vite.config.ts"]
+  "include": [
+    "vite.config.ts",
+    "playwright.config.ts",
+    "playwright.dist.config.ts",
+    "e2e",
+    "e2e-dist",
+    "scripts"
+  ]
 }

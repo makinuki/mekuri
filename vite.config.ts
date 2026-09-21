@@ -25,7 +25,13 @@ export default defineConfig({
         EXTERNALS.some((external) => id === external || id.startsWith(`${external}/`)),
     },
   },
-  test: { environment: "jsdom" },
+  // The unit gate covers the library and the lab source only; the Playwright
+  // specs under e2e and e2e-dist run through their own Playwright configs and
+  // must not be collected here.
+  test: {
+    environment: "jsdom",
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "examples/**/*.{test,spec}.{ts,tsx}"],
+  },
   // Build output, installed packages, and the untracked planning and scratch
   // tree stay out of lint and format runs, so the gates only cover content a
   // host or contributor consumes.

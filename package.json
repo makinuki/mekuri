@@ -14,15 +14,21 @@
     "test": "vp test",
     "test:run": "vp test --run",
     "test:watch": "vp test --watch",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "example:dev": "vp dev examples/reader",
     "example:dev:lan": "vp dev examples/reader --host",
-    "example:build": "vp build examples/reader"
+    "example:build": "vp build examples/reader",
+    "example:build:dist": "vp build examples/reader --mode dist",
+    "example:preview": "vp preview examples/reader",
+    "test:e2e": "playwright test",
+    "test:e2e:dist": "playwright test --config playwright.dist.config.ts"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.13"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.2",
     "@types/react": "^19.1.10",

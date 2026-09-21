@@ -29,6 +29,10 @@ export function PrebuiltSurface({
         engine={engine}
         pages={pages}
         gap={mode === "continuous-vertical" ? 8 : 0}
+        // The continuous column is capped at the fixture page width, so a
+        // page of the sample series measures its natural height and the
+        // browser suite can reach a later page with a fixed wheel delta.
+        maxWidth={600}
         hud={hud}
         showZoneOverlay={zoneOverlay}
         boundarySlot={boundarySlot}
