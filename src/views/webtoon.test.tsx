@@ -117,6 +117,13 @@ describe("WebtoonView composition", () => {
     expect(container.querySelector("[data-mekuri-boundary]")).toBeNull();
   });
 
+  it("lets taps reach the surface while the boundary slot shows", () => {
+    mountGeometry();
+    const { container } = renderWebtoon({}, { boundarySlot: <p>Chapter complete</p> });
+    const mount = container.querySelector("[data-mekuri-boundary]") as HTMLElement;
+    expect(mount.style.pointerEvents).toBe("none");
+  });
+
   it("draws the zone geometry and drops the HUD on request", () => {
     mountGeometry();
     const overlay = renderWebtoon({}, { showZoneOverlay: true });

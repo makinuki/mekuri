@@ -312,6 +312,20 @@ describe("PagedView host chrome", () => {
     expect(container.querySelector("[data-mekuri-boundary]")).toBeNull();
   });
 
+  it("lets empty-area taps reach the zone map while the boundary slot shows", async () => {
+    const { engine, container } = renderPaged({}, { boundarySlot: <p>Chapter complete</p> });
+    const mount = container.querySelector("[data-mekuri-boundary]") as HTMLElement;
+    expect(mount.style.pointerEvents).toBe("none");
+
+    const element = surface(container);
+    const restore = mockViewportDimensions(element, { width: WIDTH, height: HEIGHT });
+    await act(async () => {
+      await simulateTouchGesture(element, { type: "tap", at: { x: 360, y: HEIGHT / 2 } });
+    });
+    expect(engine.getState().pageIndex).toBe(1);
+    restore();
+  });
+
   it("reports the start boundary without moving before the first page", () => {
     let boundary: ChapterBoundary | null = null;
     const engine = createMekuriEngine({

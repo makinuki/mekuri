@@ -14,6 +14,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   `true`) with the `keyboardOptions` and `gestureOptions` bags matching the
   paged surface, so a host that owns input keeps exactly one dispatcher.
 
+### Fixed
+
+- views: the boundary mount container no longer swallows zone taps while slot
+  content shows. The container takes no pointer events; slot content opts back
+  in per element where it wants taps.
+
 ## [0.1.1] - 2026-09-21
 
 Add release script.

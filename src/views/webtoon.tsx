@@ -129,6 +129,9 @@ export function WebtoonView({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            // See PagedView: the container takes no pointer events, so taps
+            // on empty areas reach the zone map.
+            pointerEvents: "none",
           }}
         >
           {boundarySlot}

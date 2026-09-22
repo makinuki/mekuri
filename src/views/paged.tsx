@@ -222,6 +222,9 @@ export function PagedView({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            // The container takes no pointer events, so taps on empty areas
+            // reach the zone map; slot content opts back in per element.
+            pointerEvents: "none",
           }}
         >
           {boundarySlot}
