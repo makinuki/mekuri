@@ -21,6 +21,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   scroll-alignment settling window, and views expose `useEngineSelector` for
   single-field subscriptions. The README gains host-integration notes covering
   attach targets, code-based maps, suppression, and test dispatch targets.
+
+### Fixed
+
+- engine: `next()` and `prev()` are no-ops while zoomed, so keyboard, HUD,
+  and host callers share the gesture-layer zoom lock. `goToIndex` stays
+  available as the programmatic restore path.
 - engine: prebuilt views and the gesture layer take the structural
   `MekuriViewEngine` instead of the vanilla store, with `MekuriGestureEngine`
   for the gesture layer. The `useMekuriEngine` output exposes `subscribe`,

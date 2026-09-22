@@ -514,6 +514,10 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   }
 
   function next(): void {
+    // The zoom lock is enforced here, not only in the gesture layer, so
+    // keyboard, HUD, and host callers share the guarantee. goToIndex stays
+    // available as the programmatic restore path.
+    if (state.zoomScale > 1) return;
     if (state.mode === "double") {
       const spreads = currentSpreads();
       const start = alignToSpread(state.pageIndex, spreads);
@@ -538,6 +542,8 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
   }
 
   function prev(): void {
+    // See next(): locked navigation is a no-op for every caller.
+    if (state.zoomScale > 1) return;
     if (state.mode === "double") {
       const spreads = currentSpreads();
       const start = alignToSpread(state.pageIndex, spreads);
@@ -561,6 +567,8 @@ export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngi
     notify();
   }
 
+  // Programmatic restore stays available while zoomed: unlike next() and
+  // prev(), this move is never a gesture turn.
   function goToIndex(index: number, offset?: number): void {
     const total = totalPages();
     const clamped = total === 0 ? 0 : Math.max(0, Math.min(index, total - 1));

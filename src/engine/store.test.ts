@@ -143,6 +143,23 @@ describe("navigation actions", () => {
     engine.goToIndex(2);
     expect(engine.getState().pageIndex).toBe(1);
   });
+
+  it("holds navigation and boundaries while zoomed", () => {
+    const { engine, events } = harness();
+    engine.setZoomScale(2);
+    engine.next();
+    engine.prev();
+    expect(engine.getState().pageIndex).toBe(0);
+    expect(events.boundaries).toEqual([]);
+    expect(events.samples).toEqual([]);
+  });
+
+  it("keeps goToIndex available while zoomed", () => {
+    const { engine } = harness();
+    engine.setZoomScale(2);
+    engine.goToIndex(3);
+    expect(engine.getState().pageIndex).toBe(3);
+  });
 });
 
 describe("mode switching preserves logical position", () => {
