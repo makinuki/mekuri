@@ -128,12 +128,18 @@ address state without relying on class names.
 - Shortcut maps are keyed by `KeyboardEvent.code`, so bindings survive
   keyboard layout changes. Overrides merge per action and an empty list
   disables that action; hosts with drawers or dialogs drop `Escape` from
-  `toggleHUD` down to `["KeyM"]`.
+  `toggleHUD` down to `["KeyM"]` and keep suppression live through the close,
+  so an `Escape` that closes nothing never also toggles chrome.
 - Suppression is read on every keydown. Pass `isSuppressed` (or the engine
   `isKeyboardSuppressed` option) so open modals, dialogs, and focused text
   fields own the keyboard without shortcut collisions.
 - Every engine clock is injectable for deterministic suites: the store,
   gesture, and scroll-alignment options take `now`.
+- Auto-hiding chrome on page turns is host policy, not an engine affordance:
+  subscribe to the engine, compare `pageIndex`, and defer the `toggleHUD`
+  call out of the notification loop, since a toggle inside a subscriber
+  re-enters the listener loop. Skip mode transitions, continuous scrolling,
+  and slider or go-to jumps, which are not discrete turns.
 
 ## Host ownership boundary
 
