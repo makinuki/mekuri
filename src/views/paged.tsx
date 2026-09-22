@@ -17,6 +17,8 @@
 // - Host content for a held chapter boundary is rendered through
 //   boundarySlot. The engine holds the position and reports the boundary
 //   through onBoundaryReached; the view only provides the mount point.
+// - A host renderPage body owns its nodes and receives the pipeline attempt;
+//   the host reports load outcomes so the failure registry stays accurate.
 // - Both input layers attach by default and detach on host request, so a host
 //   that owns input keeps exactly one dispatcher.
 
@@ -33,8 +35,14 @@ import { useEngineState } from "./use-engine-state";
 export interface PagedViewProps {
   engine: MekuriEngine;
   pages: MekuriPage[];
-  /** Renders one page body. Defaults to the source image of the page. */
-  renderPage?: (page: MekuriPage, index: number) => ReactNode;
+  /** Renders one page body. Defaults to the source image of the page. A host
+   * body owns its nodes: the view never detaches them, retry scheduling still
+   * advances the pipeline attempt (passed as the third argument), and the host
+   * reports load outcomes through `reportPageLoaded` /
+   * `reportPageLoadFailed` so the failure registry stays accurate. Key reloads
+   * on host state, not on the attempt alone: the attempt also advances for
+   * scheduled retries that reuse the source. */
+  renderPage?: (page: MekuriPage, index: number, attempt?: number) => ReactNode;
   /** Describes a page to assistive technology; also labels the status
    * announcement. Defaults to "Page {index + 1}". */
   altLabeler?: MekuriAltLabeler;
@@ -180,7 +188,7 @@ export function PagedView({
                 }}
               >
                 {renderPage !== undefined ? (
-                  renderPage(page, index)
+                  renderPage(page, index, engine.getPageRequest(page.id)?.attempt ?? 0)
                 ) : (
                   <img
                     key={`${page.id}:${request?.attempt ?? 0}`}

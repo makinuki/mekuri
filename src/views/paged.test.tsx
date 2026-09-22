@@ -342,3 +342,25 @@ describe("PagedView host chrome", () => {
     expect(engine.getState().pageIndex).toBe(0);
   });
 });
+
+describe("PagedView custom page bodies", () => {
+  it("passes the pipeline attempt to a host page body", () => {
+    const seen: number[] = [];
+    const engine = createMekuriEngine({ pages: PAGES });
+    render(
+      <PagedView
+        engine={engine}
+        pages={PAGES}
+        renderPage={(_page, index, attempt) => {
+          if (index === 0) seen.push(attempt ?? -1);
+          return <p>{`page ${index}`}</p>;
+        }}
+      />,
+    );
+
+    expect(seen).toEqual([0]);
+
+    act(() => engine.retryPage(0));
+    expect(seen[seen.length - 1]).toBe(1);
+  });
+});

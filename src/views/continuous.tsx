@@ -17,7 +17,8 @@
 //   when the current attempt has a source, "pending" while it is being
 //   resolved, "failed" when the attempt is in the engine failure registry.
 // - Host page bodies come from renderPage. Host slots own their nodes and are
-//   never detached by the view.
+//   never detached by the view; the pipeline attempt reaches them as the third
+//   argument, and the host reports load outcomes to the failure registry.
 
 import {
   useCallback,
@@ -48,8 +49,14 @@ export interface ContinuousViewProps {
   estimateSize?: number;
   /** Settling window in milliseconds for programmatic alignment. */
   alignmentWindowMs?: number;
-  /** Renders one page body. Defaults to the source image of the page. */
-  renderPage?: (page: MekuriPage, index: number) => ReactNode;
+  /** Renders one page body. Defaults to the source image of the page. A host
+   * body owns its nodes and is never detached by the view; retry scheduling
+   * still advances the pipeline attempt (passed as the third argument), and
+   * the host reports load outcomes through `reportPageLoaded` /
+   * `reportPageLoadFailed` so the failure registry stays accurate. Key reloads
+   * on host state, not on the attempt alone: the attempt also advances for
+   * scheduled retries that reuse the source. */
+  renderPage?: (page: MekuriPage, index: number, attempt?: number) => ReactNode;
 }
 
 const DEFAULT_OVERSCAN = 4;
@@ -374,7 +381,7 @@ export function ContinuousView({
                 }}
               >
                 {renderPage !== undefined ? (
-                  renderPage(page, item.index)
+                  renderPage(page, item.index, request?.attempt ?? 0)
                 ) : (
                   <img
                     key={`${page.id}:${request?.attempt ?? 0}`}

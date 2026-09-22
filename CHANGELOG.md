@@ -13,6 +13,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   to detach either input layer; `WebtoonView` accepts `keyboard` (default
   `true`) with the `keyboardOptions` and `gestureOptions` bags matching the
   paged surface, so a host that owns input keeps exactly one dispatcher.
+- views: custom `renderPage` bodies receive the pipeline attempt as a third
+  argument, with documented ownership: host bodies own their nodes, report
+  load outcomes to the failure registry, and key reloads on host state rather
+  than on the attempt alone.
 
 ### Fixed
 

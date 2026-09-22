@@ -31,8 +31,13 @@ export interface WebtoonViewProps {
   overscan?: number;
   /** Estimated page height in pixels before the first measurement. */
   estimateSize?: number;
-  /** Renders one page body. Defaults to the source image of the page. */
-  renderPage?: (page: MekuriPage, index: number) => ReactNode;
+  /** Renders one page body. Defaults to the source image of the page. A host
+   * body owns its nodes; the pipeline attempt reaches it as the third
+   * argument, and the host reports load outcomes through `reportPageLoaded`
+   * / `reportPageLoadFailed`. Key reloads on host state, not on the attempt
+   * alone: the attempt also advances for scheduled retries that reuse the
+   * source. */
+  renderPage?: (page: MekuriPage, index: number, attempt?: number) => ReactNode;
   /** Describes a page to assistive technology; also labels the status
    * announcement. Defaults to "Page {index + 1}". */
   altLabeler?: MekuriAltLabeler;
