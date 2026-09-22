@@ -227,6 +227,46 @@ describe("PagedView input wiring", () => {
     act(() => engine.resetZoom());
     expect(target.style.transform).toBe("");
   });
+
+  it("takes a host keyboard map", () => {
+    const { engine } = renderPaged({}, { keyboardOptions: { map: { nextPage: ["KeyN"] } } });
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "ArrowRight", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(engine.getState().pageIndex).toBe(0);
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "KeyN", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(engine.getState().pageIndex).toBe(1);
+  });
+
+  it("leaves the keyboard to the host when keyboard is false", () => {
+    const { engine } = renderPaged({}, { keyboard: false });
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "ArrowRight", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(engine.getState().pageIndex).toBe(0);
+  });
+
+  it("leaves gestures to the host when gestures is false", async () => {
+    const { engine, container } = renderPaged({}, { gestures: false });
+    const element = surface(container);
+
+    await act(async () => {
+      await simulateTouchGesture(element, { type: "tap", at: { x: 360, y: HEIGHT / 2 } });
+    });
+
+    expect(engine.getState().pageIndex).toBe(0);
+  });
 });
 
 describe("PagedView host chrome", () => {

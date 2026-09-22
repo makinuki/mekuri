@@ -7,7 +7,9 @@
 // vertical scrolling, and the zoom matrix is defined for the paged surface, so
 // a pinch over a webtoon column would transform a column the virtualizer
 // measures. A host that wants zoom over a continuous column attaches the
-// gesture layer itself, with a transform target it owns.
+// gesture layer itself, with a transform target it owns. The keyboard
+// dispatcher attaches by default and detaches on host request, and both
+// option bags match the paged surface.
 
 import { useRef, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import type { MekuriEngine } from "../engine/store";
@@ -15,7 +17,7 @@ import type { MekuriPage } from "../engine/types";
 import { defaultAltLabeler, type MekuriAltLabeler } from "./a11y";
 import { ContinuousView } from "./continuous";
 import { MekuriHUD, MekuriZoneOverlay } from "./hud";
-import { useMekuriSurface } from "./surface";
+import { useMekuriSurface, type MekuriSurfaceOptions } from "./surface";
 import { useEngineState } from "./use-engine-state";
 
 export interface WebtoonViewProps {
@@ -45,6 +47,12 @@ export interface WebtoonViewProps {
   showZoneOverlay?: boolean;
   className?: string;
   style?: CSSProperties;
+  /** Attaches the keyboard dispatcher. Defaults to true. */
+  keyboard?: boolean;
+  /** Accepted for parity with the paged surface; applied when a gesture layer
+   * is attached. The view itself attaches none. */
+  gestureOptions?: MekuriSurfaceOptions["gestureOptions"];
+  keyboardOptions?: MekuriSurfaceOptions["keyboardOptions"];
 }
 
 export function WebtoonView({
@@ -62,11 +70,21 @@ export function WebtoonView({
   showZoneOverlay = false,
   className,
   style,
+  keyboard = true,
+  gestureOptions,
+  keyboardOptions,
 }: WebtoonViewProps): ReactElement | null {
   const state = useEngineState(engine);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  useMekuriSurface({ engine, surfaceRef: rootRef, gestures: false });
+  useMekuriSurface({
+    engine,
+    surfaceRef: rootRef,
+    gestures: false,
+    keyboard,
+    gestureOptions,
+    keyboardOptions,
+  });
 
   if (pages.length === 0) return null;
 

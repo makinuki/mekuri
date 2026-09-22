@@ -132,3 +132,36 @@ describe("WebtoonView composition", () => {
     expect(container.querySelector("[data-mekuri-view]")).toBeNull();
   });
 });
+
+describe("WebtoonView input wiring", () => {
+  it("takes a host keyboard map", () => {
+    mountGeometry();
+    const { engine } = renderWebtoon({}, { keyboardOptions: { map: { nextPage: ["KeyN"] } } });
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "ArrowRight", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(engine.getState().pageIndex).toBe(0);
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "KeyN", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(engine.getState().pageIndex).toBe(1);
+  });
+
+  it("leaves the keyboard to the host when keyboard is false", () => {
+    mountGeometry();
+    const { engine } = renderWebtoon({}, { keyboard: false });
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "ArrowRight", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(engine.getState().pageIndex).toBe(0);
+  });
+});

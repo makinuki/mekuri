@@ -17,6 +17,8 @@
 // - Host content for a held chapter boundary is rendered through
 //   boundarySlot. The engine holds the position and reports the boundary
 //   through onBoundaryReached; the view only provides the mount point.
+// - Both input layers attach by default and detach on host request, so a host
+//   that owns input keeps exactly one dispatcher.
 
 import { useEffect, useRef, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { IMAGE_LOAD_FAILED } from "../engine/pipeline";
@@ -47,6 +49,10 @@ export interface PagedViewProps {
   showZoneOverlay?: boolean;
   className?: string;
   style?: CSSProperties;
+  /** Attaches the gesture layer. Defaults to true. */
+  gestures?: boolean;
+  /** Attaches the keyboard dispatcher. Defaults to true. */
+  keyboard?: boolean;
   gestureOptions?: MekuriSurfaceOptions["gestureOptions"];
   keyboardOptions?: MekuriSurfaceOptions["keyboardOptions"];
 }
@@ -73,6 +79,8 @@ export function PagedView({
   showZoneOverlay = false,
   className,
   style,
+  gestures = true,
+  keyboard = true,
   gestureOptions,
   keyboardOptions,
 }: PagedViewProps): ReactElement | null {
@@ -89,6 +97,8 @@ export function PagedView({
     surfaceRef,
     transformRef,
     zoomScale: state.zoomScale,
+    gestures,
+    keyboard,
     gestureOptions,
     keyboardOptions,
   });
