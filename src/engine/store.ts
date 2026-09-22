@@ -184,6 +184,36 @@ export interface MekuriEngine {
   syncControlled(state: MekuriControlledState | undefined): void;
 }
 
+/** Engine surface the prebuilt views and the input layers they attach read:
+ * subscription, state, reading position, page requests, the container and
+ * viewport bindings, and the actions their controls dispatch. Every member is
+ * stable for the life of the engine. The vanilla store implements this shape,
+ * and the React binding output satisfies it, so a host that renders its own
+ * markup can also render the shipped views from the hook output without
+ * reaching for the vanilla store. */
+export interface MekuriViewEngine {
+  getState(): MekuriState;
+  subscribe(listener: () => void): () => void;
+  next(): void;
+  prev(): void;
+  toggleHUD(force?: boolean): void;
+  setZoomScale(scale: number, origin?: MekuriPoint): void;
+  resetZoom(): void;
+  zoomIn(): void;
+  zoomOut(): void;
+  getZoomBounds(): MekuriZoomBounds;
+  isKeyboardSuppressed(): boolean;
+  getPreloadWindow(): number[];
+  getReadingPosition(): MekuriReadingPosition;
+  reportScroll(scrollOffset: number, pageOffsets: MekuriPageOffset[]): void;
+  getContainerProps(): MekuriContainerProps;
+  getViewportProps(): MekuriViewportProps;
+  getPageRequest(pageId: string | number): MekuriPageRequest | undefined;
+  resolvePageSrc(pageId: string | number): Promise<string | null>;
+  reportPageLoaded(pageId: string | number): void;
+  reportPageLoadFailed(pageId: string | number, code: string, message: string): void;
+}
+
 export function createMekuriEngine(liveOptions: MekuriEngineOptions): MekuriEngine {
   const listeners = new Set<() => void>();
   const clock = (): number => (liveOptions.now ? liveOptions.now() : Date.now());

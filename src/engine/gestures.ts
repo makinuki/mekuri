@@ -29,12 +29,26 @@ import {
   zoomMatrix,
   type MekuriPanBounds,
 } from "./matrix";
-import type { MekuriEngine } from "./store";
-import type { MekuriPoint, MekuriZoneAction } from "./types";
+import type { MekuriZoomBounds } from "./store";
+import type { MekuriPoint, MekuriState, MekuriZoneAction } from "./types";
 import { hitTestZone, normalizePoint, resolveZoneAction, swipePageAction } from "./zones";
 
+/** Engine surface the gesture controller dispatches into. Every member is
+ * stable for the life of the engine, and both the vanilla store and the
+ * React binding output satisfy this shape. */
+export interface MekuriGestureEngine {
+  getState(): MekuriState;
+  subscribe(listener: () => void): () => void;
+  next(): void;
+  prev(): void;
+  toggleHUD(force?: boolean): void;
+  setZoomScale(scale: number, origin?: MekuriPoint): void;
+  resetZoom(): void;
+  getZoomBounds(): MekuriZoomBounds;
+}
+
 export interface MekuriGestureOptions {
-  engine: MekuriEngine;
+  engine: MekuriGestureEngine;
   /** Element that receives the touch and pointer stream. */
   element: HTMLElement;
   /** Element the zoom matrix is applied to. Defaults to the element above. */

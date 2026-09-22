@@ -25,7 +25,7 @@
 import { useEffect, useRef, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { IMAGE_LOAD_FAILED } from "../engine/pipeline";
 import { alignToSpread } from "../engine/spreads";
-import type { MekuriEngine } from "../engine/store";
+import type { MekuriViewEngine } from "../engine/store";
 import type { MekuriPage, MekuriState } from "../engine/types";
 import { defaultAltLabeler, type MekuriAltLabeler } from "./a11y";
 import { MekuriHUD, MekuriZoneOverlay } from "./hud";
@@ -33,7 +33,7 @@ import { useMekuriSurface, type MekuriSurfaceOptions } from "./surface";
 import { useEngineState } from "./use-engine-state";
 
 export interface PagedViewProps {
-  engine: MekuriEngine;
+  engine: MekuriViewEngine;
   pages: MekuriPage[];
   /** Renders one page body. Defaults to the source image of the page. A host
    * body owns its nodes: the view never detaches them, retry scheduling still

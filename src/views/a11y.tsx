@@ -4,7 +4,7 @@
 // announcement.
 
 import type { CSSProperties, ReactElement } from "react";
-import type { MekuriEngine } from "../engine/store";
+import type { MekuriViewEngine } from "../engine/store";
 import type { MekuriPage } from "../engine/types";
 import { useEngineState } from "./use-engine-state";
 
@@ -29,7 +29,7 @@ export const VISUALLY_HIDDEN_STYLE: CSSProperties = {
 };
 
 export interface MekuriPageStatusProps {
-  engine: MekuriEngine;
+  engine: MekuriViewEngine;
   pages: MekuriPage[];
   altLabeler?: MekuriAltLabeler;
   /** Formats the announcement. Defaults to the page description followed by

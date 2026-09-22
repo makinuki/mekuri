@@ -2,6 +2,8 @@
 // useMekuriEngine and custom markup has to reach the same navigation and zoom
 // surface the prebuilt views offer, and the engine layers have to attach to
 // the hook output directly. Nothing in the host component below imports a view.
+// A final case renders the shipped views from the hook output, proving the two
+// entry points compose.
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { createRef, useEffect, useRef, type RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
@@ -67,6 +69,17 @@ function CustomReader({
   );
 }
 
+/** Prebuilt views rendered from the hook output: the composition the
+ * structural view engine enables. */
+function HookComposedReader(): React.ReactElement {
+  const reader = useMekuriEngine({
+    pages: PAGES,
+    resolveSrc: (page) => `https://example.test/pages/${page.id}.jpg`,
+  });
+  captured.current = reader;
+  return <PagedView engine={reader} pages={PAGES} />;
+}
+
 function named(root: HTMLElement, label: string): HTMLElement {
   const element = root.querySelector(`[aria-label="${label}"]`);
   expect(element).not.toBeNull();
@@ -122,6 +135,23 @@ describe("headless host parity", () => {
 
     expect(viewport.getAttribute("data-mekuri-viewport")).toBe("continuous-webtoon");
     expect(viewport.style.touchAction).toBe("pan-y");
+  });
+
+  it("renders the prebuilt views from the hook output", () => {
+    const { container } = render(<HookComposedReader />);
+    expect(container.querySelector("[data-mekuri-paged-page]")?.getAttribute("data-index")).toBe(
+      "0",
+    );
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "ArrowRight", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(captured.current?.state.pageIndex).toBe(1);
+
+    act(() => fireEvent.click(prebuiltControl(container, "next")));
+    expect(captured.current?.state.pageIndex).toBe(2);
   });
 
   it("reaches the same state as the prebuilt views for the same control sequence", () => {

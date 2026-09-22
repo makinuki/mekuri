@@ -2,11 +2,18 @@
 // reconciles host-controlled state during render, subscribes via
 // useSyncExternalStore (SSR-safe through the server snapshot), and forwards
 // actions. All behavior lives in store.ts.
-import { useMemo, useRef, useSyncExternalStore, type HTMLAttributes } from "react";
+import { useMemo, useRef, useSyncExternalStore } from "react";
 import { createMekuriEngine, type MekuriEngineOptions, type MekuriZoomBounds } from "./store";
 import type { MekuriPageRequest } from "./pipeline";
-import type { MekuriReadingPosition } from "./scroll";
-import type { MekuriDirection, MekuriKeyboardMap, MekuriMode, MekuriState } from "./types";
+import type { MekuriContainerProps, MekuriViewportProps } from "./props";
+import type { MekuriPageOffset, MekuriReadingPosition } from "./scroll";
+import type {
+  MekuriControlledState,
+  MekuriDirection,
+  MekuriKeyboardMap,
+  MekuriMode,
+  MekuriState,
+} from "./types";
 
 export interface MekuriEngineOutput {
   state: MekuriState;
@@ -14,6 +21,18 @@ export interface MekuriEngineOutput {
   /** Imperative state access with the same shape as the vanilla store, for
    * layers that only hold the hook output. */
   getState: () => MekuriState;
+
+  /** Engine subscription, so the shipped views and custom surfaces attach
+   * directly to the hook output. */
+  subscribe: (listener: () => void) => () => void;
+
+  /** Feeds viewport scroll state from a custom surface; resolves the dominant
+   * page per the throttling contract. */
+  reportScroll: (scrollOffset: number, pageOffsets: MekuriPageOffset[]) => void;
+
+  /** Reconciles host-owned state in controlled mode. No-op in uncontrolled
+   * mode; safe to call during render and never notifies. */
+  syncControlled: (state: MekuriControlledState | undefined) => void;
 
   /** Imperative synchronous position access; authoritative for persistence. */
   getReadingPosition: () => MekuriReadingPosition;
@@ -59,8 +78,8 @@ export interface MekuriEngineOutput {
   /** Typed DOM prop bindings for the host's containers. Both records are
    * stable for a given mode and zoom lock; the gesture layer refines the
    * dead-zone contract on the viewport. */
-  getContainerProps: () => HTMLAttributes<HTMLElement>;
-  getViewportProps: () => HTMLAttributes<HTMLElement>;
+  getContainerProps: () => MekuriContainerProps;
+  getViewportProps: () => MekuriViewportProps;
 }
 
 export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutput {
@@ -85,6 +104,9 @@ export function useMekuriEngine(options: MekuriEngineOptions): MekuriEngineOutpu
   return {
     state,
     getState: engine.getState,
+    subscribe: engine.subscribe,
+    reportScroll: engine.reportScroll,
+    syncControlled: engine.syncControlled,
     getReadingPosition: engine.getReadingPosition,
     next: engine.next,
     prev: engine.prev,

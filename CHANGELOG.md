@@ -21,6 +21,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   scroll-alignment settling window, and views expose `useEngineSelector` for
   single-field subscriptions. The README gains host-integration notes covering
   attach targets, code-based maps, suppression, and test dispatch targets.
+- engine: prebuilt views and the gesture layer take the structural
+  `MekuriViewEngine` instead of the vanilla store, with `MekuriGestureEngine`
+  for the gesture layer. The `useMekuriEngine` output exposes `subscribe`,
+  `reportScroll`, and `syncControlled`, so hosts render the shipped views
+  directly from the hook.
 
 ### Fixed
 

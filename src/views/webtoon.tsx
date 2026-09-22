@@ -12,7 +12,7 @@
 // option bags match the paged surface.
 
 import { useRef, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import type { MekuriEngine } from "../engine/store";
+import type { MekuriViewEngine } from "../engine/store";
 import type { MekuriPage } from "../engine/types";
 import { defaultAltLabeler, type MekuriAltLabeler } from "./a11y";
 import { ContinuousView } from "./continuous";
@@ -21,7 +21,7 @@ import { useMekuriSurface, type MekuriSurfaceOptions } from "./surface";
 import { useEngineState } from "./use-engine-state";
 
 export interface WebtoonViewProps {
-  engine: MekuriEngine;
+  engine: MekuriViewEngine;
   pages: MekuriPage[];
   /** Width cap for the reading column. Defaults to full width. */
   maxWidth?: number | string;

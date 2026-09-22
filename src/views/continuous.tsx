@@ -1,6 +1,6 @@
 // Interface contract for ContinuousView (this file only):
 //
-// ContinuousView takes the vanilla MekuriEngine plus the page list. The
+// ContinuousView takes the view engine plus the page list. The
 // engine stores the reading position against a concrete scrolled column; the
 // continuous view reconciles the two.
 //
@@ -33,11 +33,11 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { IMAGE_LOAD_FAILED } from "../engine/pipeline";
 import { resolvePageFromScrollOffset, type MekuriReadingPosition } from "../engine/scroll";
 import { createScrollAlignmentLock, type ScrollAlignmentLock } from "../engine/scroll-lock";
-import type { MekuriEngine } from "../engine/store";
+import type { MekuriViewEngine } from "../engine/store";
 import type { MekuriMode, MekuriPage } from "../engine/types";
 
 export interface ContinuousViewProps {
-  engine: MekuriEngine;
+  engine: MekuriViewEngine;
   pages: MekuriPage[];
   /** Width cap for the reading column. Defaults to full width. */
   maxWidth?: number | string;

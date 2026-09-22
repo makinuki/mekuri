@@ -16,10 +16,10 @@ import {
   type MekuriKeyboardController,
   type MekuriKeyboardOptions,
 } from "../engine/keyboard";
-import type { MekuriEngine } from "../engine/store";
+import type { MekuriViewEngine } from "../engine/store";
 
 export interface MekuriSurfaceOptions {
-  engine: MekuriEngine;
+  engine: MekuriViewEngine;
   /** Element that receives the pointer stream: the reading surface. */
   surfaceRef: RefObject<HTMLElement | null>;
   /** Element the zoom matrix is applied to. Defaults to the surface. */

@@ -14,7 +14,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import type { MekuriEngine } from "../engine/store";
+import type { MekuriViewEngine } from "../engine/store";
 import type { MekuriPage, MekuriZoneMap } from "../engine/types";
 import { MekuriPageStatus, type MekuriAltLabeler } from "./a11y";
 import { useEngineState } from "./use-engine-state";
@@ -55,7 +55,7 @@ export function MekuriHudButton({
 }
 
 export interface MekuriHUDProps {
-  engine: MekuriEngine;
+  engine: MekuriViewEngine;
   pages: MekuriPage[];
   altLabeler?: MekuriAltLabeler;
   /** Formats the status announcement; see MekuriPageStatus. */
@@ -176,7 +176,7 @@ export function MekuriHUD({
 }
 
 export interface MekuriZoneOverlayProps {
-  engine: MekuriEngine;
+  engine: MekuriViewEngine;
   /** Zone map to draw. Defaults to the map the engine dispatches, so a host
    * settings dialog can preview a preset that is not active yet. */
   zoneMap?: MekuriZoneMap;

@@ -4,10 +4,10 @@
 // the store caches the state object it builds.
 
 import { useRef, useSyncExternalStore } from "react";
-import type { MekuriEngine } from "../engine/store";
+import type { MekuriViewEngine } from "../engine/store";
 import type { MekuriState } from "../engine/types";
 
-export function useEngineState(engine: MekuriEngine): MekuriState {
+export function useEngineState(engine: MekuriViewEngine): MekuriState {
   return useSyncExternalStore(engine.subscribe, engine.getState, engine.getState);
 }
 
@@ -16,7 +16,10 @@ export function useEngineState(engine: MekuriEngine): MekuriState {
  * across unrelated updates; prefer primitive fields where the shape allows.
  * Hosts reaching for `useSyncExternalStore` over the engine directly can use
  * this instead. */
-export function useEngineSelector<T>(engine: MekuriEngine, select: (state: MekuriState) => T): T {
+export function useEngineSelector<T>(
+  engine: MekuriViewEngine,
+  select: (state: MekuriState) => T,
+): T {
   const selectRef = useRef(select);
   selectRef.current = select;
   const state = useSyncExternalStore(engine.subscribe, engine.getState, engine.getState);
