@@ -48,7 +48,9 @@ export interface MekuriKeyboardOptions {
    * belongs to a host control inside it. */
   element: HTMLElement;
   /** Node the keydown listener attaches to. Defaults to the element's
-   * document, which is the scope a reader is expected to answer in. */
+   * document, which is the scope a reader is expected to answer in. Host
+   * tests dispatch key events on the document: window-dispatched events never
+   * arrive, while real key events bubble and are unaffected. */
   target?: EventTarget;
   /** Host overrides merged over the defaults; each key replaces one list. */
   map?: Partial<MekuriKeyboardMap>;

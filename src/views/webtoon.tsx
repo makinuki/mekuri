@@ -31,6 +31,9 @@ export interface WebtoonViewProps {
   overscan?: number;
   /** Estimated page height in pixels before the first measurement. */
   estimateSize?: number;
+  /** Monotonic clock for the scroll-alignment settling window. Defaults to
+   * Date.now; injectable for deterministic tests. */
+  now?: () => number;
   /** Renders one page body. Defaults to the source image of the page. A host
    * body owns its nodes; the pipeline attempt reaches it as the third
    * argument, and the host reports load outcomes through `reportPageLoaded`
@@ -67,6 +70,7 @@ export function WebtoonView({
   gap,
   overscan,
   estimateSize,
+  now,
   renderPage,
   altLabeler = defaultAltLabeler,
   formatStatus,
@@ -118,6 +122,7 @@ export function WebtoonView({
         gap={gap}
         overscan={overscan}
         estimateSize={estimateSize}
+        now={now}
         renderPage={renderPage}
       />
       {showZoneOverlay ? (

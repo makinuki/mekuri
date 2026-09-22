@@ -128,6 +128,25 @@ describe("ContinuousView alignment", () => {
     expect(samples.filter((sample) => sample.pageIndex !== 3)).toEqual([]);
   });
 
+  it("restores the stored position on an injected clock", () => {
+    const layout = mountGeometry();
+    const list = pages(8);
+    const engine = createMekuriEngine({
+      pages: list,
+      initialState: { mode: "continuous-vertical", pageIndex: 3 },
+    });
+    // Window expiry is covered at the lock unit level: scroll writes land
+    // exactly in jsdom, so this covers the prop plumbing and the restore path.
+    const { container } = render(<ContinuousView engine={engine} pages={list} now={() => 0} />);
+    const element = scroller(container);
+
+    layout.measure();
+    reportScroll(element);
+
+    expect(element.scrollTop).toBe(3 * PAGE_HEIGHT);
+    expect(engine.getState().pageIndex).toBe(3);
+  });
+
   it("lands on the fractional offset requested by goToIndex", async () => {
     const layout = mountGeometry();
     const list = pages(12);

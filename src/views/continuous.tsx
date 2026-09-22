@@ -49,6 +49,9 @@ export interface ContinuousViewProps {
   estimateSize?: number;
   /** Settling window in milliseconds for programmatic alignment. */
   alignmentWindowMs?: number;
+  /** Monotonic clock for the settling window. Defaults to Date.now;
+   * injectable for deterministic tests. */
+  now?: () => number;
   /** Renders one page body. Defaults to the source image of the page. A host
    * body owns its nodes and is never detached by the view; retry scheduling
    * still advances the pipeline attempt (passed as the third argument), and
@@ -112,6 +115,7 @@ export function ContinuousView({
   overscan = DEFAULT_OVERSCAN,
   estimateSize = DEFAULT_ESTIMATE_SIZE,
   alignmentWindowMs = DEFAULT_ALIGNMENT_WINDOW_MS,
+  now,
   renderPage,
 }: ContinuousViewProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -123,11 +127,17 @@ export function ContinuousView({
   const reportedRef = useRef<MekuriReadingPosition | null>(null);
 
   // The lock lives for the lifetime of the view and is re-created only when
-  // the settling window changes.
+  // the settling window changes. The clock is read through a ref, so a host
+  // that passes a fresh closure on every render never resets the lock.
+  const nowRef = useRef(now);
+  nowRef.current = now;
   const lockRef = useRef<ScrollAlignmentLock | null>(null);
   const lockWindowRef = useRef(alignmentWindowMs);
   if (lockRef.current === null || lockWindowRef.current !== alignmentWindowMs) {
-    lockRef.current = createScrollAlignmentLock({ windowMs: alignmentWindowMs });
+    lockRef.current = createScrollAlignmentLock({
+      windowMs: alignmentWindowMs,
+      now: () => nowRef.current?.() ?? Date.now(),
+    });
     lockWindowRef.current = alignmentWindowMs;
   }
   const lock = lockRef.current;

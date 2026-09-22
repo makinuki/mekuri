@@ -17,6 +17,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   argument, with documented ownership: host bodies own their nodes, report
   load outcomes to the failure registry, and key reloads on host state rather
   than on the attempt alone.
+- views: the continuous surface takes an injectable `now` clock for the
+  scroll-alignment settling window, and views expose `useEngineSelector` for
+  single-field subscriptions. The README gains host-integration notes covering
+  attach targets, code-based maps, suppression, and test dispatch targets.
 
 ### Fixed
 

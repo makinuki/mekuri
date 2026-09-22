@@ -119,6 +119,22 @@ Theming goes through CSS custom properties (`--mekuri-bg`, `--mekuri-hud-bg`,
 element carries a `data-mekuri-*` attribute, so a host stylesheet or test can
 address state without relying on class names.
 
+## Host integration notes
+
+- The keyboard dispatcher attaches to the owner document by default and
+  answers wherever focus sits. Host tests must dispatch key events on the
+  document: events dispatched on `window` never arrive, while real key events
+  bubble and are unaffected.
+- Shortcut maps are keyed by `KeyboardEvent.code`, so bindings survive
+  keyboard layout changes. Overrides merge per action and an empty list
+  disables that action; hosts with drawers or dialogs drop `Escape` from
+  `toggleHUD` down to `["KeyM"]`.
+- Suppression is read on every keydown. Pass `isSuppressed` (or the engine
+  `isKeyboardSuppressed` option) so open modals, dialogs, and focused text
+  fields own the keyboard without shortcut collisions.
+- Every engine clock is injectable for deterministic suites: the store,
+  gesture, and scroll-alignment options take `now`.
+
 ## Host ownership boundary
 
 Mekuri renders reading state and nothing else. The table states what the
